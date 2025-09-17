@@ -302,19 +302,7 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
                 minHeight: '0'
               }}
             >
-              {/* Welcome message with domain expertise */}
-              <div 
-                className="bg-white/90 backdrop-blur-sm p-2 rounded-2xl border" 
-                style={{ borderColor: primaryBorder }}
-              >
-                <div className="flex items-start gap-3 mb-3">
-                  <div>
-                    <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
-                      {persona.greeting || `Welcome to ${agentInfo.aiAgentName || "Our AI Agent"}! I'm here to help you learn more about our services, features, and support options. How can I assist you today?`}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              
             
               {/* Domain expertise section */}
               {agentInfo.domainExpertise && (

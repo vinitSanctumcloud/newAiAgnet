@@ -27,8 +27,8 @@ export async function GET(request: Request) {
 
     if (!agent) {
       return NextResponse.json(
-        { success: false, message: 'No agent found for this user' },
-        { status: 404 }
+        { success: true, message: 'No agent found for this user' },
+        { status: 200 }
       );
     }
 

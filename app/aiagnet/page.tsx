@@ -71,11 +71,34 @@ function AiAgentInner() {
             });
             setCurrentStep(agent.currentStep || 0);
           } else {
-            throw new Error(result.message || 'Failed to fetch agent data');
+            // No agent found, initialize with default values and userId
+            setAgentInfo((prev) => ({
+              ...prev,
+              userId: session.user.id, // Set userId even if no agent exists
+            }));
+            // Optionally, you can reset persona and currentStep to defaults
+            setPersona({
+              greeting: '',
+              tone: '',
+              customRules: '',
+              conversationStarters: [],
+              languages: '',
+              enableFreeText: true,
+              enableBranchingLogic: true,
+              conversationFlow: '',
+            });
+            setCurrentStep(0);
+            // Optionally, show a toast to inform the user
+            toast.info('No existing agent found. Start creating your new AI agent!', { id: 'no-agent-info' });
           }
         } catch (error) {
           console.error('Error fetching agent data:', error);
           toast.error('Failed to fetch agent data. Please try again.', { id: 'fetch-error' });
+          // Ensure userId is set even on error
+          setAgentInfo((prev) => ({
+            ...prev,
+            userId: session.user.id,
+          }));
         }
       };
       fetchAgentData();
@@ -117,7 +140,7 @@ function AiAgentInner() {
           formData.append('bannerFileUrl', agentInfo.bannerFile);
         }
         response = await fetch('/api/agent-step1', { method: 'POST', body: formData });
-      } else if (currentStep === 1) { // Updated to match step index
+      } else if (currentStep === 2) {
         // Step 2 submission
         if (!persona.greeting || !persona.tone || !persona.customRules || !persona.languages || !persona.conversationStarters.length) {
           toast.error('Please fill all required fields in Step 2.', { id: 'step2-error' });
@@ -133,7 +156,7 @@ function AiAgentInner() {
         formData.append('enableBranchingLogic', persona.enableBranchingLogic.toString());
         formData.append('conversationFlow', persona.conversationFlow);
         response = await fetch('/api/agent-step2', { method: 'POST', body: formData });
-      } else if (currentStep === 2) { // Updated to match step index
+      } else if (currentStep === 3) {
         // Step 3 submission
         if (!agentInfo.manualEntry.length && !agentInfo.csvFile && !agentInfo.docFiles.length) {
           toast.error('Please provide at least one FAQ or file in Step 3.', { id: 'step3-error' });
@@ -156,7 +179,7 @@ function AiAgentInner() {
           });
         }
         response = await fetch('/api/agent-step3', { method: 'POST', body: formData });
-      } else if (currentStep === 3) { // Updated to match step index
+      } else if (currentStep === 4) {
         // Step 4: Fetch data for review
         response = await fetch(`/api/getAgent?userId=${session.user.id}`);
       }
@@ -174,7 +197,7 @@ function AiAgentInner() {
         toast.success('Step 1 completed! Moving to Step 2.', { id: 'step1-success' });
       }
 
-      if (currentStep < 3) { // Updated to match step index
+      if (currentStep < 3) {
         setCurrentStep((prev) => Math.min(prev + 1, 3));
         // Refetch agent data for Steps 1-3
         const fetchResponse = await fetch(`/api/getAgent?userId=${session.user.id}`);
@@ -204,7 +227,11 @@ function AiAgentInner() {
             conversationFlow: agent.conversationFlow || '',
           });
         } else {
-          throw new Error('Failed to fetch updated agent data');
+          // If no agent data is returned, maintain current state but ensure userId is set
+          setAgentInfo((prev) => ({
+            ...prev,
+            userId: session.user.id,
+          }));
         }
       } else {
         // Step 4: Update state with fetched data
@@ -273,7 +300,21 @@ function AiAgentInner() {
           conversationFlow: agent.conversationFlow || '',
         });
       } else {
-        throw new Error(result.message || 'Failed to fetch agent data');
+        // No agent found, reset to defaults but keep userId
+        setAgentInfo((prev) => ({
+          ...prev,
+          userId: session.user.id,
+        }));
+        setPersona({
+          greeting: '',
+          tone: '',
+          customRules: '',
+          conversationStarters: [],
+          languages: '',
+          enableFreeText: true,
+          enableBranchingLogic: true,
+          conversationFlow: '',
+        });
       }
       // Move to the previous step
       setCurrentStep((prev) => Math.max(prev - 1, 0));
