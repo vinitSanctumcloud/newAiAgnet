@@ -8,7 +8,7 @@ import { Loader2 } from 'lucide-react'; // Assuming you're using lucide-react fo
 
 export default function LoginPage() {
     const router = useRouter();
-    const { data: session, status } = useSession();
+    const { status } = useSession();
 
     useEffect(() => {
         if (status === 'authenticated') {

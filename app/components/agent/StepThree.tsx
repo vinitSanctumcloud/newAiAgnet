@@ -24,7 +24,6 @@ interface StepThreeProps {
 
 function StepThree({ onAgentChange, agentInfo }: StepThreeProps) {
   const [errors, setErrors] = useState<Partial<Record<keyof AgentInfo, string>>>({});
-  const [touched, setTouched] = useState<Partial<Record<keyof AgentInfo, boolean>>>({});
   const [openFAQDialog, setOpenFAQDialog] = useState(false);
   const [openAddEditDialog, setOpenAddEditDialog] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -34,7 +33,6 @@ function StepThree({ onAgentChange, agentInfo }: StepThreeProps) {
   const [dragOver, setDragOver] = useState(false);
   const [isAddingMultiple, setIsAddingMultiple] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const csvFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Removed default FAQs setting
@@ -42,7 +40,6 @@ function StepThree({ onAgentChange, agentInfo }: StepThreeProps) {
 
   const handleDocFilesChange = (files: File[]) => {
     if (files.length > 0) {
-      setTouched((prev) => ({ ...prev, docFiles: true }));
       // If docFiles is string[], convert to File[] by starting fresh with new files
       // If docFiles is File[] or empty, append new files
       const newDocFiles = Array.isArray(agentInfo.docFiles) && agentInfo.docFiles.length > 0 && typeof agentInfo.docFiles[0] === 'string'
@@ -51,19 +48,6 @@ function StepThree({ onAgentChange, agentInfo }: StepThreeProps) {
       const newAgentInfo = { ...agentInfo, docFiles: newDocFiles };
       onAgentChange(newAgentInfo);
       setErrors((prev) => ({ ...prev, docFiles: undefined }));
-    }
-  };
-
-  const handleCsvFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    if (file && !file.name.endsWith('.csv')) {
-      setErrors((prev) => ({ ...prev, csvFile: 'Please upload a CSV file' }));
-      return;
-    }
-    const newAgentInfo = { ...agentInfo, csvFile: file };
-    onAgentChange(newAgentInfo);
-    if (touched.csvFile) {
-      setErrors((prev) => ({ ...prev, csvFile: file ? undefined : 'CSV file is required' }));
     }
   };
 
@@ -96,11 +80,6 @@ function StepThree({ onAgentChange, agentInfo }: StepThreeProps) {
       ? newFiles as string[]
       : newFiles as File[];
     const newAgentInfo = { ...agentInfo, docFiles: newDocFiles };
-    onAgentChange(newAgentInfo);
-  };
-
-  const removeCsvFile = () => {
-    const newAgentInfo = { ...agentInfo, csvFile: null };
     onAgentChange(newAgentInfo);
   };
 
@@ -207,9 +186,6 @@ function StepThree({ onAgentChange, agentInfo }: StepThreeProps) {
         return sum; // Skip string URLs as they don't have size
       }, 0);
     }
-    if (agentInfo.csvFile instanceof File) {
-      total += agentInfo.csvFile.size;
-    }
     return total;
   };
 
@@ -234,7 +210,7 @@ function StepThree({ onAgentChange, agentInfo }: StepThreeProps) {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Knowledge Base Management</h1>
         </div>
         <p className="text-lg text-gray-600 dark:text-gray-400">
-          Enhance your AI agent's intelligence by uploading detailed documents and curating comprehensive FAQs.
+          Enhance your AI agent intelligence by uploading detailed documents and curating comprehensive FAQs.
         </p>
       </div>
 
@@ -249,7 +225,7 @@ function StepThree({ onAgentChange, agentInfo }: StepThreeProps) {
                 <div>
                   <CardTitle className="text-xl text-gray-900 dark:text-gray-100">Document Upload Center</CardTitle>
                   <CardDescription className="text-gray-600 dark:text-gray-400 mt-1">
-                    {agentInfo.docFiles.length} file{agentInfo.docFiles.length !== 1 ? "s" : ""} uploaded • {getTotalFileSizeMB()} MB used
+                    {agentInfo.docFiles.length} {agentInfo.docFiles.length === 1 ? "file" : "files"} uploaded • {getTotalFileSizeMB()} MB used
                   </CardDescription>
                 </div>
               </div>
@@ -351,7 +327,6 @@ function StepThree({ onAgentChange, agentInfo }: StepThreeProps) {
               )}
             </div>
 
-        
             <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
               <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
                 <span>Storage Usage</span>

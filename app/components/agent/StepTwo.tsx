@@ -32,7 +32,7 @@ function StepTwo({ onPersonaChange, persona: initialPersona }: StepTwoProps) {
 
   const MAX_STARTER_LENGTH = 50;
 
-  const validate = (field: keyof Persona, value: any) => {
+  const validate = <K extends keyof Persona>(field: K, value: Persona[K]) => {
     if (field === 'conversationStarters') {
       if (!Array.isArray(value) || value.length === 0) {
         return 'At least one conversation starter is required.';
@@ -46,7 +46,7 @@ function StepTwo({ onPersonaChange, persona: initialPersona }: StepTwoProps) {
     return '';
   };
 
-  const handleChange = (field: keyof Persona, value: any) => {
+  const handleChange = <K extends keyof Persona>(field: K, value: Persona[K]) => {
     const newPersona = { ...persona, [field]: value };
     setPersona(newPersona);
     onPersonaChange(newPersona);
@@ -299,7 +299,7 @@ function StepTwo({ onPersonaChange, persona: initialPersona }: StepTwoProps) {
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="conversationFlow" className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Conversation Flow Design
+                  Conversation Flow Design <span className="text-red-500">*</span>
                 </Label>
                 <Textarea
                   id="conversationFlow"

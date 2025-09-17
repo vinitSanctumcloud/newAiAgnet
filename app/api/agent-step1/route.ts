@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
-import agentModel, { getOrCreateAgent } from '@/app/lib/agentModel';
+import { getOrCreateAgent } from '@/app/lib/agentModel';
 import connectDB from '../db';
 
 export async function POST(request: Request) {

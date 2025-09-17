@@ -188,51 +188,6 @@ export default function Stepper({
   );
 }
 
-const FireworksAnimation = () => {
-  return (
-    <div className="absolute inset-0 flex justify-center items-center pointer-events-none">
-      {[...Array(30)].map((_, i) => (
-        <motion.div
-          key={i}
-          className="absolute w-2 h-2 rounded-full"
-          style={{ backgroundColor: `hsl(${Math.random() * 360}, 100%, 50%)` }}
-          initial={{ scale: 0, opacity: 1, x: 0, y: 0 }}
-          animate={{ 
-            scale: [0, 1.5, 0],
-            opacity: [1, 0.7, 0],
-            x: Math.cos((i / 30) * Math.PI * 2) * (60 + Math.random() * 60),
-            y: Math.sin((i / 30) * Math.PI * 2) * (60 + Math.random() * 60),
-          }}
-          transition={{ 
-            duration: 1.8,
-            delay: Math.random() * 0.8,
-            ease: "easeOut"
-          }}
-        />
-      ))}
-    </div>
-  );
-};
-
-const LevelUpAnimation = () => {
-  return (
-    <motion.div
-      className="relative inline-block"
-      animate={{ 
-        scale: [1, 1.3, 1],
-        y: [0, -8, 0],
-      }}
-      transition={{ 
-        duration: 0.6,
-        repeat: 1,
-        repeatType: "reverse"
-      }}
-    >
-      {/* Your level up content here */}
-    </motion.div>
-  );
-};
-
 interface CompletionScreenProps {
   agentUrl: string;
   iframeSrc: string;
@@ -245,7 +200,6 @@ function CompletionScreen({ agentUrl, iframeSrc, widgetSrc }: CompletionScreenPr
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
-      // Toast removed as requested
       console.log('Copied to clipboard!');
     }).catch(() => {
       console.error('Failed to copy');
@@ -485,9 +439,7 @@ function StepConnector({ isComplete }: StepConnectorProps) {
   );
 }
 
-interface CheckIconProps extends React.SVGProps<SVGSVGElement> {}
-
-function CheckIcon(props: CheckIconProps) {
+function CheckIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg {...props} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
       <motion.path

@@ -1,6 +1,5 @@
 // app/api/auth/logout/route.ts
 import { NextResponse } from 'next/server';
-import { signOut } from 'next-auth/react';
 
 export async function POST() {
   try {
@@ -22,6 +21,7 @@ export async function POST() {
     });
     return response;
   } catch (error) {
+    console.log(error)
     return NextResponse.json({ error: 'Failed to log out' }, { status: 500 });
   }
 }

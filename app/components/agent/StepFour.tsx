@@ -1,8 +1,9 @@
 import React, { useState, ChangeEvent, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Mic, ArrowLeft, Bot, RefreshCw, Minimize2, Calendar, MapPin, BookOpen, GraduationCap, MessageSquare, User, Star, ChevronRight } from 'lucide-react';
+import { Send, Mic, ArrowLeft, Bot, RefreshCw, Minimize2, MessageSquare, Star, ChevronRight } from 'lucide-react';
 import { AgentInfo, Persona } from '@/app/lib/type'; // Import AgentInfo and Persona
+import Image from 'next/image';
 
 interface Message {
   id: string;
@@ -28,7 +29,6 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
   const primaryColorDark = agentInfo.colorTheme ? `#${Math.floor(parseInt(agentInfo.colorTheme.slice(1), 16) * 0.7).toString(16).padStart(6, '0')}` : '#6D28D9';
   const primaryColorLight = agentInfo.colorTheme ? `${agentInfo.colorTheme}20` : '#8B5CF620';
   const primaryBorder = agentInfo.colorTheme ? `${agentInfo.colorTheme}30` : '#8B5CF630';
-  const primaryColor200 = agentInfo.colorTheme ? `${agentInfo.colorTheme}CC` : '#8B5CF6CC';
   const primaryColor300 = agentInfo.colorTheme ? `${agentInfo.colorTheme}80` : '#8B5CF680';
 
   // Get AI Agent name based on domain expertise
@@ -46,7 +46,6 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
   };
 
   const handleStartChat = (option?: string) => {
-    const starterText = option || userInput.trim();
     
     const initialMessages: Message[] = [{
       id: '1',
@@ -74,7 +73,7 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
       setIsTyping(true);
       setTimeout(() => {
         const matchingFAQ = findMatchingFAQ(option);
-        let botResponse = matchingFAQ 
+        const botResponse = matchingFAQ 
           ? `${matchingFAQ.answer} (From FAQ: ${matchingFAQ.question})`
           : "Great question! I'd be happy to help with that. Our AI agent offers a wide range of services to match your needs and goals.";
         const botMessage: Message = {
@@ -116,7 +115,7 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
 
     setTimeout(() => {
       const matchingFAQ = findMatchingFAQ(inputText);
-      let botResponse = matchingFAQ 
+      const botResponse = matchingFAQ 
         ? `${matchingFAQ.answer} (From FAQ: ${matchingFAQ.question})`
         : "Thanks for your question! Our AI agent is designed to provide comprehensive support and information tailored to your needs.";
       const botMessage: Message = {
@@ -169,17 +168,7 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
   };
 
   // InfoCard component for displaying agent info in welcome screen
-  const InfoCard = ({ icon: Icon, title, value }: { icon: any, title: string, value: string }) => (
-    <div className="bg-white/80 backdrop-blur-sm p-3 rounded-xl border shadow-sm flex items-start gap-3" style={{ borderColor: primaryBorder }}>
-      <div className="p-2 rounded-lg" style={{ backgroundColor: primaryColorLight }}>
-        <Icon className="h-4 w-4" style={{ color: primaryColor }} />
-      </div>
-      <div>
-        <p className="text-xs font-medium text-gray-700">{title}</p>
-        <p className="text-sm font-semibold" style={{ color: primaryColor }}>{value}</p>
-      </div>
-    </div>
-  );
+  
 
   // PromptCard component for displaying conversation starters
   const PromptCard = ({ text, onClick }: { text: string, onClick: () => void }) => (
@@ -211,7 +200,7 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
             onClick={handleMinimize}
           >
             {agentInfo.logoFile ? (
-              <img 
+              <Image
                 src={typeof agentInfo.logoFile === 'string' ? agentInfo.logoFile : URL.createObjectURL(agentInfo.logoFile)} 
                 alt="Agent Logo" 
                 className="w-10 h-10 object-contain rounded-full"
@@ -253,7 +242,9 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
             )}
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden border-2 border-white/30">
               {agentInfo.logoFile ? (
-                <img 
+                <Image
+                width={40}
+                height={40}
                   src={typeof agentInfo.logoFile === 'string' ? agentInfo.logoFile : URL.createObjectURL(agentInfo.logoFile)} 
                   alt="Agent Logo" 
                   className="w-10 h-10 object-cover"

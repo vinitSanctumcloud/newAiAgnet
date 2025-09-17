@@ -5,7 +5,6 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
@@ -17,7 +16,6 @@ import PieChartComponent from '../components/dashboard/PieChartComponent';
 import AreaChartComponent from '../components/dashboard/AreaChartComponent';
 import TableComponent from '../components/dashboard/TableComponent';
 import AlertCard from '../components/dashboard/AlertCard';
-
 
 // Mock data
 const lineChartData = [
@@ -146,19 +144,10 @@ export default function Dashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDark]);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -167,15 +156,6 @@ export default function Dashboard() {
     }
   }, [session, status, router]);
 
-  const handleLogout = async () => {
-    try {
-      await signOut({ callbackUrl: '/auth/login' });
-    } catch (error) {
-      console.error('Logout failed:', error);
-      alert('Failed to log out. Please try again.');
-    }
-  };
-
   if (status === 'loading' || !mounted) {
     return <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">Loading...</div>;
   }
@@ -183,8 +163,7 @@ export default function Dashboard() {
   if (session && session.user) {
     return (
       <DashboardLayout>
-        <div className=" space-y-8  dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen transition-colors duration-300">
-
+        <div className="space-y-8 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen transition-colors duration-300">
           {/* Metric Cards - 6 components */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {metrics.map((metric, index) => (

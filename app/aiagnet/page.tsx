@@ -33,7 +33,7 @@ function AiAgentInner() {
     manualEntry: [],
     logoFile: null,
     bannerFile: null,
-    csvFile: null,
+    // csvFile: null,
   });
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,7 +57,7 @@ function AiAgentInner() {
               manualEntry: agent.manualEntry || [],
               logoFile: agent.logoFile || null,
               bannerFile: agent.bannerFile || null,
-              csvFile: agent.csvFile || null,
+              // csvFile: agent.csvFile || null,
             });
             setPersona({
               greeting: agent.greeting || '',
@@ -158,17 +158,17 @@ function AiAgentInner() {
         response = await fetch('/api/agent-step2', { method: 'POST', body: formData });
       } else if (currentStep === 3) {
         // Step 3 submission
-        if (!agentInfo.manualEntry.length && !agentInfo.csvFile && !agentInfo.docFiles.length) {
+        if (!agentInfo.manualEntry.length  && !agentInfo.docFiles.length) {
           toast.error('Please provide at least one FAQ or file in Step 3.', { id: 'step3-error' });
           setIsSubmitting(false);
           return;
         }
         formData.append('manualEntry', JSON.stringify(agentInfo.manualEntry));
-        if (agentInfo.csvFile instanceof File) {
-          formData.append('csvFile', agentInfo.csvFile);
-        } else if (typeof agentInfo.csvFile === 'string') {
-          formData.append('csvFileUrl', agentInfo.csvFile);
-        }
+        // if (agentInfo.csvFile instanceof File) {
+        //   formData.append('csvFile', agentInfo.csvFile);
+        // } else if (typeof agentInfo.csvFile === 'string') {
+        //   formData.append('csvFileUrl', agentInfo.csvFile);
+        // }
         if (Array.isArray(agentInfo.docFiles)) {
           agentInfo.docFiles.forEach((file, index) => {
             if (file instanceof File) {
@@ -214,7 +214,7 @@ function AiAgentInner() {
             manualEntry: agent.manualEntry || [],
             logoFile: agent.logoFile || null,
             bannerFile: agent.bannerFile || null,
-            csvFile: agent.csvFile || null,
+            // csvFile: agent.csvFile || null,
           });
           setPersona({
             greeting: agent.greeting || '',
@@ -245,7 +245,7 @@ function AiAgentInner() {
           manualEntry: data?.agent?.manualEntry || [],
           logoFile: data?.agent?.logoFile || null,
           bannerFile: data?.agent?.bannerFile || null,
-          csvFile: data?.agent?.csvFile || null,
+          // csvFile: data?.agent?.csvFile || null,
         });
         setPersona({
           greeting: data?.agent?.greeting || '',
@@ -287,7 +287,7 @@ function AiAgentInner() {
           manualEntry: agent.manualEntry || [],
           logoFile: agent.logoFile || null,
           bannerFile: agent.bannerFile || null,
-          csvFile: agent.csvFile || null,
+          // csvFile: agent.csvFile || null,
         });
         setPersona({
           greeting: agent.greeting || '',

@@ -8,7 +8,7 @@ export interface AgentInfo {
   manualEntry: { question: string; answer: string }[];
   logoFile: File | string | null;
   bannerFile: File | string | null;
-  csvFile: File | string | null;
+  // csvFile: File | string | null;
 }
 
 export interface Agent {

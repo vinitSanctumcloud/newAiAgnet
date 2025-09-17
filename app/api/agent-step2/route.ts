@@ -33,6 +33,7 @@ export async function POST(request: Request) {
         );
       }
     } catch (error) {
+      console.log(error)
       return NextResponse.json(
         { success: false, message: 'Invalid conversation starters format' },
         { status: 400 }

@@ -2,7 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { Mail, Lock, CheckSquare, LogIn, Eye, EyeOff, User, Phone } from 'lucide-react';
+import { Mail, Lock, LogIn, Eye, EyeOff, User, Phone } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,8 +45,9 @@ export default function AuthForm({ onSubmit, buttonText }: Props) {
         await onSubmit({ email, password });
       }
       setError('');
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during authentication');
+    } catch (err: unknown) {
+      console.log(err)
+      setError((err as Error).message || 'An error occurred during authentication');
     } finally {
       setIsLoading(false);
     }
@@ -371,7 +372,7 @@ export default function AuthForm({ onSubmit, buttonText }: Props) {
                   >
                     {isLoginPage ? (
                       <p>
-                        Don't have an account?{" "}
+                        Dont have an account?{" "}
                         <a href="/auth/register" className="text-blue-600 hover:underline font-medium">
                           Sign up
                         </a>

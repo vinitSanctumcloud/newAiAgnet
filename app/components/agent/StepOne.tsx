@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Upload, X, Palette, Info, AlertCircle, Eye, ImageIcon } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { Textarea } from '@/components/ui/textarea';
+import Image from 'next/image';
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AgentInfo } from '@/app/lib/type'; // Import AgentInfo
+import { AgentInfo } from '@/app/lib/type';
+
+// Define a type for validatable fields
+type ValidatableAgentInfoKeys = {
+  [K in keyof AgentInfo]: AgentInfo[K] extends string | File | null ? K : never;
+}[keyof AgentInfo];
 
 interface StepOneProps {
   onAgentChange: (agent: AgentInfo) => void;
@@ -68,15 +74,18 @@ function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
     }
   }, [agentInfo.logoFile, agentInfo.bannerFile]);
 
-  const validate = (field: keyof AgentInfo, value: any): string | undefined => {
-    if (field === 'aiAgentName' && !value.trim()) return 'Agent name is required';
-    if (field === 'agentDescription' && !value.trim()) return 'Agent description is required';
-    if (field === 'domainExpertise' && !value.trim()) return 'Domain expertise is required';
+  const validate = (field: ValidatableAgentInfoKeys, value: string | File | null): string | undefined => {
+    if (field === 'aiAgentName' && (!value || (typeof value === 'string' && !value.trim())))
+      return 'Agent name is required';
+    if (field === 'agentDescription' && (!value || (typeof value === 'string' && !value.trim())))
+      return 'Agent description is required';
+    if (field === 'domainExpertise' && (!value || (typeof value === 'string' && !value.trim())))
+      return 'Domain expertise is required';
     if (field === 'logoFile' && !value) return 'Logo is required';
     return undefined;
   };
 
-  const handleTextChange = (field: keyof AgentInfo, value: string) => {
+  const handleTextChange = (field: ValidatableAgentInfoKeys, value: string) => {
     const newAgentInfo = { ...agentInfo, [field]: value };
     onAgentChange(newAgentInfo);
     if (touched[field]) {
@@ -108,7 +117,7 @@ function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
     }
   };
 
-  const handleBlur = (field: keyof AgentInfo) => {
+  const handleBlur = (field: ValidatableAgentInfoKeys) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
     const error = validate(field, agentInfo[field]);
     setErrors((prev) => ({ ...prev, [field]: error }));
@@ -128,43 +137,6 @@ function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
 
   const RequiredSymbol = () => <span className="text-red-500 ml-1">*</span>;
 
-  // Note: Form submission logic should be in the parent component.
-  // Example submission handler (add this in the parent component):
-  /*
-  const handleSubmit = async () => {
-    const formData = new FormData();
-    formData.append('userId', userId); // Replace with actual userId
-    formData.append('aiAgentName', agentInfo.aiAgentName);
-    formData.append('agentDescription', agentInfo.agentDescription);
-    formData.append('domainExpertise', agentInfo.domainExpertise);
-    formData.append('colorTheme', agentInfo.colorTheme);
-
-    if (agentInfo.logoFile instanceof File) {
-      formData.append('logoFile', agentInfo.logoFile);
-    } else if (typeof agentInfo.logoFile === 'string') {
-      formData.append('logoFileUrl', agentInfo.logoFile);
-    }
-
-    if (agentInfo.bannerFile instanceof File) {
-      formData.append('bannerFile', agentInfo.bannerFile);
-    } else if (typeof agentInfo.bannerFile === 'string') {
-      formData.append('bannerFileUrl', agentInfo.bannerFile);
-    }
-
-    const response = await fetch('/api/step1', {
-      method: 'POST',
-      body: formData,
-    });
-    const result = await response.json();
-    if (result.success) {
-      console.log('Step 1 saved:', result);
-      // Proceed to next step
-    } else {
-      console.error('Error:', result.message);
-    }
-  };
-  */
-
   return (
     <div className="dark:bg-gray-900 flex items-center justify-center">
       <Card className="w-full bg-white dark:bg-gray-800 rounded-2xl overflow-hidden">
@@ -174,7 +146,7 @@ function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
             Agent Configuration
           </CardTitle>
           <CardDescription className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-2">
-            Configure your AI agent's core details and branding for a seamless user experience.
+            Configure your AI agent&apos;s core details and branding for a seamless user experience.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -232,7 +204,7 @@ function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
                   value={agentInfo.agentDescription}
                   onChange={(e) => handleTextChange('agentDescription', e.target.value)}
                   onBlur={() => handleBlur('agentDescription')}
-                  placeholder="Describe your AI agent's purpose and capabilities"
+                  placeholder="Describe your AI agent&apos;s purpose and capabilities"
                   rows={6}
                 />
                 {errors.agentDescription && (
@@ -287,10 +259,12 @@ function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
                       <div className="relative">
                         <div className="w-full h-40 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center">
                           {logoPreview ? (
-                            <img
+                            <Image
                               src={logoPreview}
                               alt="Logo preview"
                               className="object-contain max-h-36 w-full"
+                              width={300}
+                              height={144}
                             />
                           ) : (
                             <ImageIcon className="h-16 w-16 text-gray-400" />
@@ -357,10 +331,12 @@ function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
                       <div className="relative">
                         <div className="w-full h-24 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center">
                           {bannerPreview ? (
-                            <img
+                            <Image
                               src={bannerPreview}
                               alt="Banner preview"
                               className="object-cover w-full h-full"
+                              width={600}
+                              height={96}
                             />
                           ) : (
                             <ImageIcon className="h-12 w-12 text-gray-400" />
@@ -425,10 +401,12 @@ function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
           </DialogHeader>
           <div className="flex justify-center p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
             {logoPreview && (
-              <img
+              <Image
                 src={logoPreview}
                 alt="Logo preview"
                 className="max-h-64 w-full object-contain rounded-lg shadow-md"
+                width={400}
+                height={256}
               />
             )}
           </div>
@@ -445,10 +423,12 @@ function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
           </DialogHeader>
           <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
             {bannerPreview && (
-              <img
+              <Image
                 src={bannerPreview}
                 alt="Banner preview"
                 className="w-full h-auto max-h-72 object-contain rounded-lg shadow-md"
+                width={800}
+                height={288}
               />
             )}
           </div>

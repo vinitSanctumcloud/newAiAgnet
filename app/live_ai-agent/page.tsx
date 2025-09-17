@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
+import Image from 'next/image'; // Added for optimized image loading
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Send, Mic, ArrowLeft, Bot, RefreshCw, Minimize2, MessageSquare, Star, ChevronRight } from 'lucide-react';
@@ -38,9 +39,8 @@ const AIAgentPage: React.FC = () => {
     colorTheme: '#007bff',
     manualEntry: [],
     logoFile: null,
-    docFiles: [], // Added to match AgentInfo interface
-    bannerFile: null, // Added to match AgentInfo interface
-    csvFile: null, // Added to match AgentInfo interface
+    docFiles: [],
+    bannerFile: null,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +62,7 @@ const AIAgentPage: React.FC = () => {
 
         const agentData: Agent = result.data;
 
-        // Update agentInfo with default fallbacks, ensuring all AgentInfo properties are included
+        // Update agentInfo with default fallbacks
         setAgentInfo({
           userId: agentData.userId || '',
           aiAgentName: agentData.aiAgentName || 'Default AI Agent',
@@ -71,9 +71,8 @@ const AIAgentPage: React.FC = () => {
           colorTheme: agentData.colorTheme || '#007bff',
           manualEntry: agentData.manualEntry || [],
           logoFile: agentData.logoFile || null,
-          docFiles: agentData.docFiles || [], // Ensure docFiles is included
-          bannerFile: agentData.bannerFile || null, // Ensure bannerFile is included
-          csvFile: agentData.csvFile || null, // Ensure csvFile is included
+          docFiles: agentData.docFiles || [],
+          bannerFile: agentData.bannerFile || null,
         });
 
         // Update persona with default fallbacks
@@ -116,47 +115,44 @@ const AIAgentPage: React.FC = () => {
     return `${agentInfo.aiAgentName || 'AI Agent'} Assistant`;
   };
 
-  const findMatchingFAQ = (input: string) => {
-    const lowerInput = input.toLowerCase();
-    return agentInfo.manualEntry.find(faq => faq.question.toLowerCase().includes(lowerInput)) ||
-           agentInfo.manualEntry.find(faq => faq.answer.toLowerCase().includes(lowerInput));
-  };
-
   const handleStartChat = (option?: string) => {
-    const starterText = option || userInput.trim();
-    
-    const initialMessages: Message[] = [{
-      id: '1',
-      text: persona.greeting || `Hi there! I'm ${getAIAgentName()}, here to help you learn more about our programs and services. How can I assist you today?`,
-      sender: 'bot',
-      timestamp: new Date(),
-      quickReplies: persona.conversationStarters && persona.conversationStarters.length > 0 
-        ? persona.conversationStarters.slice(0, 3) 
-        : ['Programs offered', 'Service details', 'Support options']
-    }];
-    
+    const initialMessages: Message[] = [
+      {
+        id: '1',
+        text: persona.greeting || `Hi there! I'm ${getAIAgentName()}, here to help you learn more about our programs and services. How can I assist you today?`,
+        sender: 'bot',
+        timestamp: new Date(),
+        quickReplies: persona.conversationStarters && persona.conversationStarters.length > 0
+          ? persona.conversationStarters.slice(0, 3)
+          : ['Programs offered', 'Service details', 'Support options'],
+      },
+    ];
+
     if (option) {
       initialMessages.push({
         id: '2',
         text: option,
         sender: 'user',
-        timestamp: new Date()
+        timestamp: new Date(),
       });
     }
-    
+
     setMessages(initialMessages);
     setIsChatStarted(true);
-    
+
     if (option) {
       setIsTyping(true);
       (async () => {
         let botResponse = '';
         try {
-          const apiResponse = await fetch('https://n8n-lg4w8c040k4g040wcw88o0kk.prod.sanctumcloud.com/webhook/bcaed4f1-9898-4675-ab5c-de410c16d7bf', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: option })
-          });
+          const apiResponse = await fetch(
+            'https://n8n-lg4w8c040k4g040wcw88o0kk.prod.sanctumcloud.com/webhook/bcaed4f1-9898-4675-ab5c-de410c16d7bf',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: option }),
+            }
+          );
           if (!apiResponse.ok) {
             throw new Error('API request failed');
           }
@@ -172,10 +168,10 @@ const AIAgentPage: React.FC = () => {
           text: botResponse,
           sender: 'bot',
           timestamp: new Date(),
-          suggestedReply: "Tell me more about the service options"
+          suggestedReply: "Tell me more about the service options",
         };
-        
-        setMessages(prev => [...prev, botMessage]);
+
+        setMessages((prev) => [...prev, botMessage]);
         setIsTyping(false);
       })();
     }
@@ -197,20 +193,23 @@ const AIAgentPage: React.FC = () => {
       id: Date.now().toString(),
       text: inputText,
       sender: 'user',
-      timestamp: new Date()
+      timestamp: new Date(),
     };
-    
-    setMessages(prev => [...prev, userMessage]);
+
+    setMessages((prev) => [...prev, userMessage]);
     setUserInput('');
     setIsTyping(true);
 
     let botResponse = '';
     try {
-      const apiResponse = await fetch('https://n8n-lg4w8c040k4g040wcw88o0kk.prod.sanctumcloud.com/webhook/bcaed4f1-9898-4675-ab5c-de410c16d7bf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: inputText })
-      });
+      const apiResponse = await fetch(
+        'https://n8n-lg4w8c040k4g040wcw88o0kk.prod.sanctumcloud.com/webhook/bcaed4f1-9898-4675-ab5c-de410c16d7bf',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: inputText }),
+        }
+      );
       if (!apiResponse.ok) {
         throw new Error('API request failed');
       }
@@ -226,10 +225,10 @@ const AIAgentPage: React.FC = () => {
       text: botResponse,
       sender: 'bot',
       timestamp: new Date(),
-      quickReplies: ['Explore services', 'Contact support', 'Request info']
+      quickReplies: ['Explore services', 'Contact support', 'Request info'],
     };
-    
-    setMessages(prev => [...prev, botMessage]);
+
+    setMessages((prev) => [...prev, botMessage]);
     setIsTyping(false);
   };
 
@@ -269,22 +268,9 @@ const AIAgentPage: React.FC = () => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  // InfoCard component
-  const InfoCard = ({ icon: Icon, title, value }: { icon: any, title: string, value: string }) => (
-    <div className="bg-white/80 backdrop-blur-sm p-3 rounded-xl border shadow-sm flex items-start gap-3" style={{ borderColor: primaryBorder }}>
-      <div className="p-2 rounded-lg" style={{ backgroundColor: primaryColorLight }}>
-        <Icon className="h-4 w-4" style={{ color: primaryColor }} />
-      </div>
-      <div>
-        <p className="text-xs font-medium text-gray-700">{title}</p>
-        <p className="text-sm font-semibold" style={{ color: primaryColor }}>{value}</p>
-      </div>
-    </div>
-  );
-
   // PromptCard component
-  const PromptCard = ({ text, onClick }: { text: string, onClick: () => void }) => (
-    <div 
+  const PromptCard = ({ text, onClick }: { text: string; onClick: () => void }) => (
+    <div
       className="bg-white/80 backdrop-blur-sm p-2 rounded-xl border shadow-sm cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md group"
       style={{ borderColor: primaryBorder }}
       onClick={onClick}
@@ -328,10 +314,12 @@ const AIAgentPage: React.FC = () => {
             onClick={handleMinimize}
           >
             {agentInfo.logoFile ? (
-              <img 
-                src={typeof agentInfo.logoFile === 'string' ? agentInfo.logoFile : URL.createObjectURL(agentInfo.logoFile)} 
-                alt="Agent Logo" 
-                className="w-10 h-10 object-contain rounded-full"
+              <Image
+                src={typeof agentInfo.logoFile === 'string' ? agentInfo.logoFile : URL.createObjectURL(agentInfo.logoFile)}
+                alt="Agent Logo"
+                width={40}
+                height={40}
+                className="object-contain rounded-full"
               />
             ) : (
               <Bot className="h-8 w-8" style={{ color: primaryColor }} />
@@ -344,15 +332,15 @@ const AIAgentPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div 
-        className="w-full max-w-md bg-white rounded-2xl flex flex-col overflow-hidden relative h-[600px]" 
+      <div
+        className="w-full max-w-md bg-white rounded-2xl flex flex-col overflow-hidden relative h-[600px]"
         style={{ border: `1px solid ${primaryBorder}` }}
       >
         {/* Header */}
-        <div 
+        <div
           className="p-4 text-white flex items-center justify-between relative"
-          style={{ 
-            background: `linear-gradient(135deg, ${primaryColor}, ${primaryColorDark})`
+          style={{
+            background: `linear-gradient(135deg, ${primaryColor}, ${primaryColorDark})`,
           }}
         >
           <div className="flex items-center gap-2">
@@ -369,10 +357,12 @@ const AIAgentPage: React.FC = () => {
             )}
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden border-2 border-white/30">
               {agentInfo.logoFile ? (
-                <img 
-                  src={typeof agentInfo.logoFile === 'string' ? agentInfo.logoFile : URL.createObjectURL(agentInfo.logoFile)} 
-                  alt="Agent Logo" 
-                  className="w-10 h-10 object-cover"
+                <Image
+                  src={typeof agentInfo.logoFile === 'string' ? agentInfo.logoFile : URL.createObjectURL(agentInfo.logoFile)}
+                  alt="Agent Logo"
+                  width={40}
+                  height={40}
+                  className="object-cover"
                 />
               ) : (
                 <Bot className="h-5 w-5 text-white" />
@@ -407,16 +397,16 @@ const AIAgentPage: React.FC = () => {
 
         {!isChatStarted ? (
           <div className="flex flex-col h-full">
-            <div 
+            <div
               ref={conversationScrollRef}
               className="flex-1 overflow-y-auto p-4 space-y-4"
-              style={{ 
+              style={{
                 background: `linear-gradient(to bottom, ${primaryColorLight}, ${primaryColorLight.replace('20', '10')})`,
-                minHeight: '0'
+                minHeight: '0',
               }}
             >
-              <div 
-                className="bg-white/90 backdrop-blur-sm p-2 rounded-2xl border" 
+              <div
+                className="bg-white/90 backdrop-blur-sm p-2 rounded-2xl border"
                 style={{ borderColor: primaryBorder }}
               >
                 <div className="flex items-start gap-3 mb-3">
@@ -446,29 +436,29 @@ const AIAgentPage: React.FC = () => {
                 <div className="grid gap-3">
                   {persona.conversationStarters && persona.conversationStarters.length > 0 ? (
                     persona.conversationStarters.slice(0, 4).map((starter: string, index: React.Key | null | undefined) => (
-                      <PromptCard 
-                        key={index} 
-                        text={starter} 
-                        onClick={() => handleStarterClick(starter)} 
+                      <PromptCard
+                        key={index}
+                        text={starter}
+                        onClick={() => handleStarterClick(starter)}
                       />
                     ))
                   ) : (
                     <>
-                      <PromptCard 
-                        text="What services do you offer?" 
-                        onClick={() => handleStarterClick("What services do you offer?")} 
+                      <PromptCard
+                        text="What services do you offer?"
+                        onClick={() => handleStarterClick("What services do you offer?")}
                       />
-                      <PromptCard 
-                        text="How do I get started?" 
-                        onClick={() => handleStartChat("How do I get started?")} 
+                      <PromptCard
+                        text="How do I get started?"
+                        onClick={() => handleStartChat("How do I get started?")}
                       />
-                      <PromptCard 
-                        text="Tell me about support options" 
-                        onClick={() => handleStartChat("Tell me about support options")} 
+                      <PromptCard
+                        text="Tell me about support options"
+                        onClick={() => handleStartChat("Tell me about support options")}
                       />
-                      <PromptCard 
-                        text="What are the key features?" 
-                        onClick={() => handleStartChat("What are the key features?")} 
+                      <PromptCard
+                        text="What are the key features?"
+                        onClick={() => handleStartChat("What are the key features?")}
                       />
                     </>
                   )}
@@ -484,7 +474,7 @@ const AIAgentPage: React.FC = () => {
                       className="w-full rounded-xl border-2 pr-12 pl-4 py-3 transition-all duration-200 placeholder-gray-400 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:border-primary group-hover:border-gray-300 shadow-sm"
                       style={{
                         borderColor: primaryBorder,
-                        backgroundColor: 'white'
+                        backgroundColor: 'white',
                       }}
                       value={userInput}
                       onChange={(e: ChangeEvent<HTMLInputElement>) => setUserInput(e.target.value)}
@@ -496,14 +486,14 @@ const AIAgentPage: React.FC = () => {
                     className="relative rounded-xl w-10 h-10 p-0 transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
                     style={{
                       background: `linear-gradient(135deg, ${primaryColor}, ${primaryColorDark})`,
-                      boxShadow: `0 4px 12px ${primaryColor}20`
+                      boxShadow: `0 4px 12px ${primaryColor}20`,
                     }}
                     onClick={() => handleStartChat()}
                     disabled={!userInput.trim()}
                   >
-                    <Send 
-                      className={`h-5 w-5 transition-transform duration-200 ${userInput.trim() ? 'rotate-0' : 'rotate-0 opacity-50'}`} 
-                      style={{ color: 'white' }} 
+                    <Send
+                      className={`h-5 w-5 transition-transform duration-200 ${userInput.trim() ? 'rotate-0' : 'rotate-0 opacity-50'}`}
+                      style={{ color: 'white' }}
                     />
                   </Button>
                 </div>
@@ -512,12 +502,12 @@ const AIAgentPage: React.FC = () => {
           </div>
         ) : (
           <div className="flex flex-col h-full">
-            <div 
+            <div
               ref={conversationScrollRef}
               className="flex-1 overflow-y-auto p-4 space-y-4"
-              style={{ 
+              style={{
                 background: `linear-gradient(to bottom, ${primaryColorLight}, ${primaryColorLight.replace('20', '10')})`,
-                minHeight: '0'
+                minHeight: '0',
               }}
             >
               <div className="space-y-4">
@@ -528,8 +518,8 @@ const AIAgentPage: React.FC = () => {
                     >
                       <div
                         className={`max-w-[85%] p-3 rounded-2xl shadow-md ${
-                          message.sender === 'user' 
-                            ? 'rounded-br-md' 
+                          message.sender === 'user'
+                            ? 'rounded-br-md'
                             : 'rounded-bl-md border backdrop-blur-sm'
                         }`}
                         style={{
@@ -545,7 +535,7 @@ const AIAgentPage: React.FC = () => {
                             </span>
                           ))}
                         </p>
-                        <span 
+                        <span
                           className={`text-xs mt-1 block text-right ${
                             message.sender === 'user' ? 'text-white/80' : 'text-gray-500'
                           }`}
@@ -565,7 +555,7 @@ const AIAgentPage: React.FC = () => {
                             style={{
                               borderColor: primaryColor300,
                               color: primaryColor,
-                              backgroundColor: 'white'
+                              backgroundColor: 'white',
                             }}
                             onClick={() => handleQuickReply(reply)}
                           >
@@ -583,7 +573,7 @@ const AIAgentPage: React.FC = () => {
                           style={{
                             color: primaryColor,
                             borderColor: primaryBorder,
-                            backgroundColor: 'white'
+                            backgroundColor: 'white',
                           }}
                           onClick={() => handleSuggestedReply(message.suggestedReply!)}
                         >
@@ -595,31 +585,31 @@ const AIAgentPage: React.FC = () => {
                 ))}
                 {isTyping && (
                   <div className="flex justify-start">
-                    <div 
+                    <div
                       className="p-3 rounded-2xl rounded-bl-md border shadow-sm backdrop-blur-sm"
-                      style={{ 
-                        backgroundColor: 'white', 
+                      style={{
+                        backgroundColor: 'white',
                         borderColor: primaryBorder,
                       }}
                     >
                       <div className="flex space-x-1">
-                        <div 
-                          className="w-2 h-2 rounded-full animate-bounce" 
-                          style={{ backgroundColor: primaryColor }} 
+                        <div
+                          className="w-2 h-2 rounded-full animate-bounce"
+                          style={{ backgroundColor: primaryColor }}
                         />
-                        <div 
-                          className="w-2 h-2 rounded-full animate-bounce" 
-                          style={{ 
-                            backgroundColor: primaryColor, 
-                            animationDelay: '0.2s' 
-                          }} 
+                        <div
+                          className="w-2 h-2 rounded-full animate-bounce"
+                          style={{
+                            backgroundColor: primaryColor,
+                            animationDelay: '0.2s',
+                          }}
                         />
-                        <div 
-                          className="w-2 h-2 rounded-full animate-bounce" 
-                          style={{ 
-                            backgroundColor: primaryColor, 
-                            animationDelay: '0.4s' 
-                          }} 
+                        <div
+                          className="w-2 h-2 rounded-full animate-bounce"
+                          style={{
+                            backgroundColor: primaryColor,
+                            animationDelay: '0.4s',
+                          }}
                         />
                       </div>
                     </div>
@@ -628,7 +618,7 @@ const AIAgentPage: React.FC = () => {
                 <div ref={messagesEndRef} />
               </div>
             </div>
-            <div 
+            <div
               className="p-4 bg-white/90 backdrop-blur-sm border-t shadow-lg"
               style={{ borderColor: primaryBorder }}
             >
@@ -640,7 +630,7 @@ const AIAgentPage: React.FC = () => {
                       className="w-full rounded-xl border-2 pr-12 pl-4 py-3 transition-all duration-200 placeholder-gray-400 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:border-primary group-hover:border-gray-300 shadow-sm"
                       style={{
                         borderColor: primaryBorder,
-                        backgroundColor: 'white'
+                        backgroundColor: 'white',
                       }}
                       value={userInput}
                       onChange={(e: ChangeEvent<HTMLInputElement>) => setUserInput(e.target.value)}
@@ -652,7 +642,7 @@ const AIAgentPage: React.FC = () => {
                     variant="ghost"
                     size="sm"
                     className="p-3 rounded-xl transition-all hover:bg-gray-200/50 hover:scale-105"
-                    style={{ 
+                    style={{
                       color: primaryColor300,
                     }}
                     onClick={handleMicClick}
@@ -664,14 +654,14 @@ const AIAgentPage: React.FC = () => {
                     className="relative rounded-xl w-10 h-10 p-0 transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
                     style={{
                       background: `linear-gradient(135deg, ${primaryColor}, ${primaryColorDark})`,
-                      boxShadow: `0 4px 12px ${primaryColor}20`
+                      boxShadow: `0 4px 12px ${primaryColor}20`,
                     }}
                     onClick={() => handleSend()}
                     disabled={!userInput.trim()}
                   >
-                    <Send 
-                      className={`h-5 w-5 transition-transform duration-200 ${userInput.trim() ? 'rotate-0' : 'rotate-0 opacity-50'}`} 
-                      style={{ color: 'white' }} 
+                    <Send
+                      className={`h-5 w-5 transition-transform duration-200 ${userInput.trim() ? 'rotate-0' : 'rotate-0 opacity-50'}`}
+                      style={{ color: 'white' }}
                     />
                   </Button>
                 </div>

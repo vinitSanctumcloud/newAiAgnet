@@ -24,8 +24,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { signOut } from 'next-auth/react';
 
 interface DashboardLayoutProps {
@@ -309,7 +307,7 @@ function Sidebar({ pathname, isSidebarOpen, setIsSidebarOpen, darkMode, toggleDa
 }
 
 // Header Component
-function Header({ toggleSidebar, pathname, darkMode, toggleDarkMode, activeSubmenu, setActiveSubmenu }: HeaderProps) {
+function Header({  }: HeaderProps) {
   return (
     <header className="lg:hidden bg-white dark:bg-gray-800 shadow-sm z-10 border-b border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between py-4 px-4">
