@@ -17,6 +17,7 @@ import {
   Sun,
   Activity,
   X,
+  Bot,
 } from 'lucide-react';
 
 // Import Shadcn UI components
@@ -142,23 +143,28 @@ function Sidebar({ pathname, isSidebarOpen, setIsSidebarOpen, darkMode, toggleDa
             </li>
             <li>
               <Link
-                href="/dashboard/settings"
+                href="/live_ai-agent"
                 onClick={() => setIsSidebarOpen(false)}
-                className={`flex items-center p-2 rounded-lg transition-all duration-200 group ${pathname === '/dashboard/settings'
-                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700/70'
+                className={`flex items-center p-2 rounded-lg transition-all duration-200 group ${pathname === '/live_ai-agent'
+                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700/70'
                   }`}
               >
-                <div className={`p-1.5 rounded-md mr-2 ${pathname === '/dashboard/settings'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-blue-100 group-hover:text-blue-600 dark:group-hover:bg-blue-900/40 dark:group-hover:text-blue-300'
-                  }`}>
-                  <Settings size={18} />
+                <div
+                  className={`p-1.5 rounded-md mr-2 ${pathname === '/live_ai-agent'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-blue-100 group-hover:text-blue-600 dark:group-hover:bg-blue-900/40 dark:group-hover:text-blue-300'
+                    }`}
+                >
+                  <Bot size={18} /> {/* you can use Bot or Cpu icon from lucide-react */}
                 </div>
-                <span>Settings</span>
-                {pathname === '/dashboard/settings' && <div className="ml-auto w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></div>}
+                <span>AI Agent</span>
+                {pathname === '/live_ai-agent' && (
+                  <div className="ml-auto w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></div>
+                )}
               </Link>
             </li>
+
             <li>
               <button
                 onClick={() => toggleSubmenu('reports')}

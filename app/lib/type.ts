@@ -1,4 +1,5 @@
 export interface AgentInfo {
+    userId: string; // Added to match IAgent and usage in page.tsx
   aiAgentName: string;
   agentDescription: string;
   domainExpertise: string;

@@ -9,18 +9,7 @@ import StepOne from '../components/agent/StepOne';
 import StepTwo from '../components/agent/StepTwo';
 import StepThree from '../components/agent/StepThree';
 import StepFour from '../components/agent/StepFour';
-import { AgentInfo, Agent } from '@/app/lib/type';
-
-interface Persona {
-  greeting: string;
-  tone: string;
-  customRules: string;
-  conversationStarters: string[];
-  languages: string;
-  enableFreeText: boolean;
-  enableBranchingLogic: boolean;
-  conversationFlow: string;
-}
+import { AgentInfo, Agent, Persona } from '@/app/lib/type';
 
 function AiAgentInner() {
   const { data: session, status } = useSession();
@@ -35,11 +24,12 @@ function AiAgentInner() {
     conversationFlow: '',
   });
   const [agentInfo, setAgentInfo] = useState<AgentInfo>({
+    userId: '', // Added to match AgentInfo interface
     aiAgentName: '',
     agentDescription: '',
     domainExpertise: '',
     colorTheme: '#007bff',
-    docFiles: [], // Initialize as empty array
+    docFiles: [],
     manualEntry: [],
     logoFile: null,
     bannerFile: null,
@@ -58,11 +48,12 @@ function AiAgentInner() {
           if (result.success && result.data) {
             const agent: Agent = result.data;
             setAgentInfo({
+              userId: agent.userId || session.user.id, // Ensure userId is set
               aiAgentName: agent.aiAgentName || '',
               agentDescription: agent.agentDescription || '',
               domainExpertise: agent.domainExpertise || '',
               colorTheme: agent.colorTheme || '#007bff',
-              docFiles: agent.docFiles || [], // Set to string[] from server
+              docFiles: agent.docFiles || [],
               manualEntry: agent.manualEntry || [],
               logoFile: agent.logoFile || null,
               bannerFile: agent.bannerFile || null,
@@ -79,10 +70,12 @@ function AiAgentInner() {
               conversationFlow: agent.conversationFlow || '',
             });
             setCurrentStep(agent.currentStep || 0);
+          } else {
+            throw new Error(result.message || 'Failed to fetch agent data');
           }
         } catch (error) {
           console.error('Error fetching agent data:', error);
-          toast.error('Failed to fetch agent data.', { id: 'fetch-error' });
+          toast.error('Failed to fetch agent data. Please try again.', { id: 'fetch-error' });
         }
       };
       fetchAgentData();
@@ -116,15 +109,15 @@ function AiAgentInner() {
         if (agentInfo.logoFile instanceof File) {
           formData.append('logoFile', agentInfo.logoFile);
         } else if (typeof agentInfo.logoFile === 'string') {
-          formData.append('logoFileUrl', agentInfo.logoFile); // Changed from logoFilePath to match backend
+          formData.append('logoFileUrl', agentInfo.logoFile);
         }
         if (agentInfo.bannerFile instanceof File) {
           formData.append('bannerFile', agentInfo.bannerFile);
         } else if (typeof agentInfo.bannerFile === 'string') {
-          formData.append('bannerFileUrl', agentInfo.bannerFile); // Changed from bannerFilePath
+          formData.append('bannerFileUrl', agentInfo.bannerFile);
         }
         response = await fetch('/api/agent-step1', { method: 'POST', body: formData });
-      } else if (currentStep === 2) {
+      } else if (currentStep === 1) { // Updated to match step index
         // Step 2 submission
         if (!persona.greeting || !persona.tone || !persona.customRules || !persona.languages || !persona.conversationStarters.length) {
           toast.error('Please fill all required fields in Step 2.', { id: 'step2-error' });
@@ -140,7 +133,7 @@ function AiAgentInner() {
         formData.append('enableBranchingLogic', persona.enableBranchingLogic.toString());
         formData.append('conversationFlow', persona.conversationFlow);
         response = await fetch('/api/agent-step2', { method: 'POST', body: formData });
-      } else if (currentStep === 3) {
+      } else if (currentStep === 2) { // Updated to match step index
         // Step 3 submission
         if (!agentInfo.manualEntry.length && !agentInfo.csvFile && !agentInfo.docFiles.length) {
           toast.error('Please provide at least one FAQ or file in Step 3.', { id: 'step3-error' });
@@ -151,19 +144,19 @@ function AiAgentInner() {
         if (agentInfo.csvFile instanceof File) {
           formData.append('csvFile', agentInfo.csvFile);
         } else if (typeof agentInfo.csvFile === 'string') {
-          formData.append('csvFileUrl', agentInfo.csvFile); // Changed from csvFilePath
+          formData.append('csvFileUrl', agentInfo.csvFile);
         }
         if (Array.isArray(agentInfo.docFiles)) {
           agentInfo.docFiles.forEach((file, index) => {
             if (file instanceof File) {
               formData.append('docFiles', file);
             } else if (typeof file === 'string') {
-              formData.append(`docFilesUrl[${index}]`, file); // Send URLs as array
+              formData.append(`docFilesUrl[${index}]`, file);
             }
           });
         }
         response = await fetch('/api/agent-step3', { method: 'POST', body: formData });
-      } else if (currentStep === 4) {
+      } else if (currentStep === 3) { // Updated to match step index
         // Step 4: Fetch data for review
         response = await fetch(`/api/getAgent?userId=${session.user.id}`);
       }
@@ -177,19 +170,24 @@ function AiAgentInner() {
         throw new Error(data.message || 'API request failed');
       }
 
-      if (currentStep < 4) {
-        setCurrentStep((prev) => Math.min(prev + 1, 4));
+      if (currentStep === 0) {
+        toast.success('Step 1 completed! Moving to Step 2.', { id: 'step1-success' });
+      }
+
+      if (currentStep < 3) { // Updated to match step index
+        setCurrentStep((prev) => Math.min(prev + 1, 3));
         // Refetch agent data for Steps 1-3
         const fetchResponse = await fetch(`/api/getAgent?userId=${session.user.id}`);
         const fetchResult = await fetchResponse.json();
         if (fetchResult.success && fetchResult.data) {
           const agent: Agent = fetchResult.data;
           setAgentInfo({
+            userId: agent.userId || session.user.id, // Ensure userId is set
             aiAgentName: agent.aiAgentName || '',
             agentDescription: agent.agentDescription || '',
             domainExpertise: agent.domainExpertise || '',
             colorTheme: agent.colorTheme || '#007bff',
-            docFiles: agent.docFiles || [], // Set to string[] from server
+            docFiles: agent.docFiles || [],
             manualEntry: agent.manualEntry || [],
             logoFile: agent.logoFile || null,
             bannerFile: agent.bannerFile || null,
@@ -205,15 +203,18 @@ function AiAgentInner() {
             enableBranchingLogic: agent.enableBranchingLogic ?? true,
             conversationFlow: agent.conversationFlow || '',
           });
+        } else {
+          throw new Error('Failed to fetch updated agent data');
         }
       } else {
         // Step 4: Update state with fetched data
         setAgentInfo({
+          userId: data?.agent?.userId || session.user.id, // Ensure userId is set
           aiAgentName: data?.agent?.aiAgentName || '',
           agentDescription: data?.agent?.agentDescription || '',
           domainExpertise: data?.agent?.domainExpertise || '',
           colorTheme: data?.agent?.colorTheme || '#007bff',
-          docFiles: data?.agent?.docFiles || [], // Set to string[] from server
+          docFiles: data?.agent?.docFiles || [],
           manualEntry: data?.agent?.manualEntry || [],
           logoFile: data?.agent?.logoFile || null,
           bannerFile: data?.agent?.bannerFile || null,
@@ -229,60 +230,60 @@ function AiAgentInner() {
           enableBranchingLogic: data?.agent?.enableBranchingLogic ?? true,
           conversationFlow: data?.agent?.conversationFlow || '',
         });
-        toast.success('Data fetched for review!', { id: 'review-success' });
       }
     } catch (error) {
       console.error('Error submitting step:', error);
-      // toast.error(`Failed to save Step ${currentStep + 1} data.`, { id: 'step-error' });
+      toast.error(`Failed to save Step ${currentStep + 1} data: ${error instanceof Error ? error.message : 'An unexpected error occurred.'}`, { id: 'step-error' });
     } finally {
       setIsSubmitting(false);
     }
   }, [agentInfo, persona, currentStep, isSubmitting, session]);
 
-const handleBack = useCallback(async () => {
-  if (isSubmitting || !session?.user?.id) return;
-  setIsSubmitting(true);
+  const handleBack = useCallback(async () => {
+    if (isSubmitting || !session?.user?.id) return;
+    setIsSubmitting(true);
 
-  try {
-    // Fetch the latest agent data from the server
-    const response = await fetch(`/api/getAgent?userId=${session.user.id}`);
-    const result = await response.json();
-    if (result.success && result.data) {
-      const agent: Agent = result.data;
-      // Update local state with server data
-      setAgentInfo({
-        aiAgentName: agent.aiAgentName || '',
-        agentDescription: agent.agentDescription || '',
-        domainExpertise: agent.domainExpertise || '',
-        colorTheme: agent.colorTheme || '#007bff',
-        docFiles: agent.docFiles || [],
-        manualEntry: agent.manualEntry || [],
-        logoFile: agent.logoFile || null,
-        bannerFile: agent.bannerFile || null,
-        csvFile: agent.csvFile || null,
-      });
-      setPersona({
-        greeting: agent.greeting || '',
-        tone: agent.tone || '',
-        customRules: agent.customRules || '',
-        conversationStarters: agent.conversationStarters || [],
-        languages: agent.languages || '',
-        enableFreeText: agent.enableFreeText ?? true,
-        enableBranchingLogic: agent.enableBranchingLogic ?? true,
-        conversationFlow: agent.conversationFlow || '',
-      });
-    } else {
-      toast.error('Failed to fetch agent data for previous step.', { id: 'fetch-back-error' });
+    try {
+      // Fetch the latest agent data from the server
+      const response = await fetch(`/api/getAgent?userId=${session.user.id}`);
+      const result = await response.json();
+      if (result.success && result.data) {
+        const agent: Agent = result.data;
+        // Update local state with server data
+        setAgentInfo({
+          userId: agent.userId || session.user.id, // Ensure userId is set
+          aiAgentName: agent.aiAgentName || '',
+          agentDescription: agent.agentDescription || '',
+          domainExpertise: agent.domainExpertise || '',
+          colorTheme: agent.colorTheme || '#007bff',
+          docFiles: agent.docFiles || [],
+          manualEntry: agent.manualEntry || [],
+          logoFile: agent.logoFile || null,
+          bannerFile: agent.bannerFile || null,
+          csvFile: agent.csvFile || null,
+        });
+        setPersona({
+          greeting: agent.greeting || '',
+          tone: agent.tone || '',
+          customRules: agent.customRules || '',
+          conversationStarters: agent.conversationStarters || [],
+          languages: agent.languages || '',
+          enableFreeText: agent.enableFreeText ?? true,
+          enableBranchingLogic: agent.enableBranchingLogic ?? true,
+          conversationFlow: agent.conversationFlow || '',
+        });
+      } else {
+        throw new Error(result.message || 'Failed to fetch agent data');
+      }
+      // Move to the previous step
+      setCurrentStep((prev) => Math.max(prev - 1, 0));
+    } catch (error) {
+      console.error('Error fetching agent data on back:', error);
+      toast.error(`Failed to load previous step data: ${error instanceof Error ? error.message : 'An unexpected error occurred.'}`, { id: 'back-error' });
+    } finally {
+      setIsSubmitting(false);
     }
-    // Move to the previous step
-    setCurrentStep((prev) => Math.max(prev - 1, 0));
-  } catch (error) {
-    console.error('Error fetching agent data on back:', error);
-    toast.error('Failed to load previous step data.', { id: 'back-error' });
-  } finally {
-    setIsSubmitting(false);
-  }
-}, [isSubmitting, session]);
+  }, [isSubmitting, session]);
 
   const handleFinalStep = useCallback(() => {
     toast.success('Agent configuration review completed!', { id: 'final-success' });
