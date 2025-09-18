@@ -6,6 +6,9 @@ import { Agent } from '@/app/lib/type';
 // Base URL for your application (set this based on your environment)
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
+// Helper to sanitize URLs by removing double slashes
+const sanitizeUrl = (url: string) => url.replace(/([^:]\/)\/+/g, '$1');
+
 export async function GET(request: Request) {
   try {
     // Connect to the database
@@ -22,7 +25,7 @@ export async function GET(request: Request) {
       );
     }
 
-    // Fetch agent with all fields, typed as Agent | null
+    // Fetch the agent from MongoDB
     const agent = await agentModel.findOne<Agent>({ userId }).lean();
 
     if (!agent) {
@@ -32,41 +35,61 @@ export async function GET(request: Request) {
       );
     }
 
-    // Construct response with all fields
+    // Prepare sanitized URLs for logo, banner, and doc files
+    const logoFile = agent.logoFile
+      ? sanitizeUrl(`${BASE_URL}/${agent.logoFile.replace(/^\/+/, '')}`)
+      : null;
+
+    const bannerFile = agent.bannerFile
+      ? sanitizeUrl(`${BASE_URL}/uploads/${agent.bannerFile.replace(/^\/+/, '')}`)
+      : null;
+
+    const csvFile = agent.csvFile
+      ? sanitizeUrl(`${BASE_URL}/uploads/${agent.csvFile.replace(/^\/+/, '')}`)
+      : null;
+
+    const docFiles = agent.docFiles
+      ? agent.docFiles.map((file) =>
+          sanitizeUrl(`${BASE_URL}/${file.replace(/^\/+/, '')}`)
+        )
+      : [];
+
+    // Construct response object
     const agentData: Agent = {
-        userId: agent.userId,
-        aiAgentName: agent.aiAgentName || '',
-        agentDescription: agent.agentDescription || '',
-        domainExpertise: agent.domainExpertise || '',
-        colorTheme: agent.colorTheme || '#007bff',
-        greeting: agent.greeting || '',
-        tone: agent.tone || '',
-        customRules: agent.customRules || '',
-        conversationStarters: agent.conversationStarters || [],
-        languages: agent.languages || '',
-        enableFreeText: agent.enableFreeText ?? true,
-        enableBranchingLogic: agent.enableBranchingLogic ?? true,
-        conversationFlow: agent.conversationFlow || '',
-        manualEntry: agent.manualEntry || [],
-        logoFile: agent.logoFile ? `${BASE_URL}${agent.logoFile}` : null,
-        bannerFile: agent.bannerFile ? `${BASE_URL}/uploads/${agent.bannerFile}` : null,
-        csvFile: agent.csvFile ? `${BASE_URL}/uploads/${agent.csvFile}` : null,
-        docFiles: agent.docFiles ? agent.docFiles.map(file => `${BASE_URL}/${file}`) : [],
-        _id: agent._id?.toString(), // Convert ObjectId to string
-        __v: agent.__v,
-        currentStep: 0
+      userId: agent.userId,
+      aiAgentName: agent.aiAgentName || '',
+      agentDescription: agent.agentDescription || '',
+      domainExpertise: agent.domainExpertise || '',
+      colorTheme: agent.colorTheme || '#007bff',
+      greeting: agent.greeting || '',
+      tone: agent.tone || '',
+      customRules: agent.customRules || '',
+      conversationStarters: agent.conversationStarters || [],
+      languages: agent.languages || '',
+      enableFreeText: agent.enableFreeText ?? true,
+      enableBranchingLogic: agent.enableBranchingLogic ?? true,
+      conversationFlow: agent.conversationFlow || '',
+      manualEntry: agent.manualEntry || [],
+      logoFile,
+      bannerFile,
+      csvFile,
+      docFiles,
+      _id: agent._id?.toString(),
+      __v: agent.__v,
+      currentStep: agent.currentStep ?? 0,
     };
 
-    console.log('Fetched agent data for userId:', userId, agentData); // Debugging log
+    console.log('✅ Agent data fetched:', agentData);
 
-    return NextResponse.json(
-      { success: true, data: agentData },
-      { status: 200 }
-    );
+    return NextResponse.json({ success: true, data: agentData }, { status: 200 });
   } catch (error) {
-    console.error('Error fetching agent data:', error);
+    console.error('❌ Error fetching agent data:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch agent data', error: (error as Error).message },
+      {
+        success: false,
+        message: 'Failed to fetch agent data',
+        error: (error as Error).message,
+      },
       { status: 500 }
     );
   }
