@@ -2,7 +2,7 @@ import React, { useState, ChangeEvent, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Send, Mic, ArrowLeft, Bot, RefreshCw, Minimize2, MessageSquare, Star, ChevronRight } from 'lucide-react';
-import { AgentInfo, Persona } from '@/app/lib/type'; // Import AgentInfo and Persona
+import { AgentInfo, Persona } from '@/app/lib/type';
 import Image from 'next/image';
 
 interface Message {
@@ -20,9 +20,33 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
   const [isTyping, setIsTyping] = useState(false);
   const [isChatStarted, setIsChatStarted] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const conversationScrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Effect to handle logo file/URL
+  useEffect(() => {
+    const sanitizeUrl = (url: string) => url.replace(/([^:]\/)\/+/g, '$1');
+    
+    if (agentInfo.logoFile) {
+      if (typeof agentInfo.logoFile === 'string') {
+        // It's a URL string
+        setLogoUrl(sanitizeUrl(agentInfo.logoFile));
+      } else if (agentInfo.logoFile instanceof File) {
+        // It's a File object - create object URL
+        const url = URL.createObjectURL(agentInfo.logoFile);
+        setLogoUrl(url);
+        
+        // Clean up object URL on component unmount
+        return () => {
+          URL.revokeObjectURL(url);
+        };
+      }
+    } else {
+      setLogoUrl(null);
+    }
+  }, [agentInfo.logoFile]);
 
   // Derive dynamic colors from agentInfo.colorTheme
   const primaryColor = agentInfo.colorTheme || '#8B5CF6';
@@ -46,7 +70,6 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
   };
 
   const handleStartChat = (option?: string) => {
-    
     const initialMessages: Message[] = [{
       id: '1',
       text: persona.greeting || `Hi there! I'm ${getAIAgentName()}, here to help you learn more about our programs and services. How can I assist you today?`,
@@ -167,9 +190,6 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  // InfoCard component for displaying agent info in welcome screen
-  
-
   // PromptCard component for displaying conversation starters
   const PromptCard = ({ text, onClick }: { text: string, onClick: () => void }) => (
     <div 
@@ -199,10 +219,12 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
             style={{ borderColor: primaryBorder }}
             onClick={handleMinimize}
           >
-            {agentInfo.logoFile ? (
+            {logoUrl ? (
               <Image
-                src={typeof agentInfo.logoFile === 'string' ? agentInfo.logoFile : URL.createObjectURL(agentInfo.logoFile)} 
+                src={logoUrl}
                 alt="Agent Logo" 
+                width={40}
+                height={40}
                 className="w-10 h-10 object-contain rounded-full"
               />
             ) : (
@@ -241,12 +263,12 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
               </Button>
             )}
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden border-2 border-white/30">
-              {agentInfo.logoFile ? (
+              {logoUrl ? (
                 <Image
-                width={40}
-                height={40}
-                  src={typeof agentInfo.logoFile === 'string' ? agentInfo.logoFile : URL.createObjectURL(agentInfo.logoFile)} 
+                  src={logoUrl}
                   alt="Agent Logo" 
+                  width={40}
+                  height={40}
                   className="w-10 h-10 object-cover"
                 />
               ) : (
@@ -293,8 +315,6 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
                 minHeight: '0'
               }}
             >
-              
-            
               {/* Domain expertise section */}
               {agentInfo.domainExpertise && (
                 <div className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border shadow-sm" style={{ borderColor: primaryBorder }}>

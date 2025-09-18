@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
-import Image from 'next/image'; // Added for optimized image loading
+import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Send, Mic, ArrowLeft, Bot, RefreshCw, Minimize2, MessageSquare, Star, ChevronRight } from 'lucide-react';
@@ -44,15 +44,34 @@ const AIAgentPage: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const conversationScrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Sanitize URL to remove double slashes
+  const sanitizeUrl = (url: string) => url.replace(/([^:]\/)\/+/g, '$1');
+
+  // Handle logo preview generation
+  useEffect(() => {
+    if (agentInfo.logoFile) {
+      if (typeof agentInfo.logoFile === 'string') {
+        setLogoPreview(sanitizeUrl(agentInfo.logoFile));
+      } else if (agentInfo.logoFile instanceof File) {
+        const reader = new FileReader();
+        reader.onload = () => setLogoPreview(reader.result as string);
+        reader.readAsDataURL(agentInfo.logoFile);
+      }
+    } else {
+      setLogoPreview(null);
+    }
+  }, [agentInfo.logoFile]);
 
   // Fetch agent data from API
   useEffect(() => {
     const fetchAgentData = async () => {
       try {
-        const userId = '68bfc39b41f0e4a580b257d0'; // Replace with actual userId (e.g., from auth context)
+        const userId = '68bfc39b41f0e4a580b257d0';
         const response = await fetch(`/api/getAgent?userId=${userId}`);
         const result = await response.json();
 
@@ -62,7 +81,6 @@ const AIAgentPage: React.FC = () => {
 
         const agentData: Agent = result.data;
 
-        // Update agentInfo with default fallbacks
         setAgentInfo({
           userId: agentData.userId || '',
           aiAgentName: agentData.aiAgentName || 'Default AI Agent',
@@ -75,7 +93,6 @@ const AIAgentPage: React.FC = () => {
           bannerFile: agentData.bannerFile || null,
         });
 
-        // Update persona with default fallbacks
         setPersona({
           greeting: agentData.greeting || 'Hello! How can I assist you today?',
           conversationStarters: agentData.conversationStarters || ['What services do you offer?', 'How do I get started?', 'Tell me about support options'],
@@ -98,6 +115,28 @@ const AIAgentPage: React.FC = () => {
     fetchAgentData();
   }, []);
 
+  // Load messages from localStorage on component mount
+  useEffect(() => {
+    const savedMessages = localStorage.getItem('chatMessages');
+    if (savedMessages) {
+      const parsedMessages: Message[] = JSON.parse(savedMessages).map((msg: Message) => ({
+        ...msg,
+        timestamp: new Date(msg.timestamp),
+      }));
+      setMessages(parsedMessages);
+      setIsChatStarted(parsedMessages.length > 0);
+    }
+  }, []);
+
+  // Save messages to localStorage whenever messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem('chatMessages', JSON.stringify(messages));
+    } else {
+      localStorage.removeItem('chatMessages');
+    }
+  }, [messages]);
+
   // Derive dynamic colors from agentInfo.colorTheme
   const primaryColor = agentInfo.colorTheme || '#8B5CF6';
   const primaryColorDark = agentInfo.colorTheme
@@ -116,22 +155,13 @@ const AIAgentPage: React.FC = () => {
   };
 
   const handleStartChat = (option?: string) => {
-    const initialMessages: Message[] = [
-      {
-        id: '1',
-        text: persona.greeting || `Hi there! I'm ${getAIAgentName()}, here to help you learn more about our programs and services. How can I assist you today?`,
-        sender: 'bot',
-        timestamp: new Date(),
-        quickReplies: persona.conversationStarters && persona.conversationStarters.length > 0
-          ? persona.conversationStarters.slice(0, 3)
-          : ['Programs offered', 'Service details', 'Support options'],
-      },
-    ];
+    const inputText = option || userInput.trim();
+    const initialMessages: Message[] = [];
 
-    if (option) {
+    if (inputText) {
       initialMessages.push({
-        id: '2',
-        text: option,
+        id: '1',
+        text: inputText,
         sender: 'user',
         timestamp: new Date(),
       });
@@ -139,8 +169,9 @@ const AIAgentPage: React.FC = () => {
 
     setMessages(initialMessages);
     setIsChatStarted(true);
+    setUserInput('');
 
-    if (option) {
+    if (inputText) {
       setIsTyping(true);
       (async () => {
         let botResponse = '';
@@ -150,7 +181,7 @@ const AIAgentPage: React.FC = () => {
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ message: option }),
+              body: JSON.stringify({ message: inputText }),
             }
           );
           if (!apiResponse.ok) {
@@ -164,7 +195,7 @@ const AIAgentPage: React.FC = () => {
         }
 
         const botMessage: Message = {
-          id: '3',
+          id: '2',
           text: botResponse,
           sender: 'bot',
           timestamp: new Date(),
@@ -249,6 +280,7 @@ const AIAgentPage: React.FC = () => {
     setUserInput('');
     setIsTyping(false);
     setIsChatStarted(false);
+    localStorage.removeItem('chatMessages');
   };
 
   const handleMinimize = () => {
@@ -258,6 +290,7 @@ const AIAgentPage: React.FC = () => {
   const handleBackButton = () => {
     setIsChatStarted(false);
     setMessages([]);
+    localStorage.removeItem('chatMessages');
   };
 
   const handleStarterClick = (starter: string) => {
@@ -268,7 +301,6 @@ const AIAgentPage: React.FC = () => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  // PromptCard component
   const PromptCard = ({ text, onClick }: { text: string; onClick: () => void }) => (
     <div
       className="bg-white/80 backdrop-blur-sm p-2 rounded-xl border shadow-sm cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md group"
@@ -313,9 +345,9 @@ const AIAgentPage: React.FC = () => {
             style={{ borderColor: primaryBorder }}
             onClick={handleMinimize}
           >
-            {agentInfo.logoFile ? (
+            {logoPreview ? (
               <Image
-                src={typeof agentInfo.logoFile === 'string' ? agentInfo.logoFile : URL.createObjectURL(agentInfo.logoFile)}
+                src={logoPreview}
                 alt="Agent Logo"
                 width={40}
                 height={40}
@@ -331,16 +363,19 @@ const AIAgentPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div
-        className="w-full max-w-md bg-white rounded-2xl flex flex-col overflow-hidden relative h-[600px]"
+        className="w-full max-w-md bg-white rounded-2xl flex flex-col overflow-hidden relative h-[600px] shadow-xl"
         style={{ border: `1px solid ${primaryBorder}` }}
       >
-        {/* Header */}
+        {/* Fixed Header */}
         <div
-          className="p-4 text-white flex items-center justify-between relative"
+          className="p-4 text-white flex items-center justify-between relative z-10"
           style={{
             background: `linear-gradient(135deg, ${primaryColor}, ${primaryColorDark})`,
+            position: 'sticky',
+            top: 0,
+            borderBottom: `1px solid ${primaryBorder}`,
           }}
         >
           <div className="flex items-center gap-2">
@@ -356,9 +391,9 @@ const AIAgentPage: React.FC = () => {
               </Button>
             )}
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden border-2 border-white/30">
-              {agentInfo.logoFile ? (
+              {logoPreview ? (
                 <Image
-                  src={typeof agentInfo.logoFile === 'string' ? agentInfo.logoFile : URL.createObjectURL(agentInfo.logoFile)}
+                  src={logoPreview}
                   alt="Agent Logo"
                   width={40}
                   height={40}
@@ -395,280 +430,252 @@ const AIAgentPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Scrollable Content */}
         {!isChatStarted ? (
-          <div className="flex flex-col h-full">
+          <div
+            ref={conversationScrollRef}
+            className="flex-1 overflow-y-auto p-4 space-y-4"
+            style={{
+              background: `linear-gradient(to bottom, ${primaryColorLight}, ${primaryColorLight.replace('20', '10')})`,
+            }}
+          >
             <div
-              ref={conversationScrollRef}
-              className="flex-1 overflow-y-auto p-4 space-y-4"
-              style={{
-                background: `linear-gradient(to bottom, ${primaryColorLight}, ${primaryColorLight.replace('20', '10')})`,
-                minHeight: '0',
-              }}
-            >
-              <div
-                className="bg-white/90 backdrop-blur-sm p-2 rounded-2xl border"
-                style={{ borderColor: primaryBorder }}
-              >
-                <div className="flex items-start gap-3 mb-3">
-                  <div>
-                    <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
-                      {persona.greeting || `Welcome to ${agentInfo.aiAgentName || "Our AI Agent"}! I'm here to help you learn more about our services, features, and support options. How can I assist you today?`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              {agentInfo.domainExpertise && (
-                <div className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border shadow-sm" style={{ borderColor: primaryBorder }}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Star className="h-4 w-4" style={{ color: primaryColor }} />
-                    <h3 className="text-sm font-semibold text-gray-800">Specialized Knowledge</h3>
-                  </div>
-                  <p className="text-xs text-gray-600">
-                    I specialize in {agentInfo.domainExpertise.toLowerCase()} and can provide detailed information about related services, features, and opportunities.
-                  </p>
-                </div>
-              )}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" style={{ color: primaryColor }} />
-                  Quick questions to get started:
-                </h3>
-                <div className="grid gap-3">
-                  {persona.conversationStarters && persona.conversationStarters.length > 0 ? (
-                    persona.conversationStarters.slice(0, 4).map((starter: string, index: React.Key | null | undefined) => (
-                      <PromptCard
-                        key={index}
-                        text={starter}
-                        onClick={() => handleStarterClick(starter)}
-                      />
-                    ))
-                  ) : (
-                    <>
-                      <PromptCard
-                        text="What services do you offer?"
-                        onClick={() => handleStarterClick("What services do you offer?")}
-                      />
-                      <PromptCard
-                        text="How do I get started?"
-                        onClick={() => handleStartChat("How do I get started?")}
-                      />
-                      <PromptCard
-                        text="Tell me about support options"
-                        onClick={() => handleStartChat("Tell me about support options")}
-                      />
-                      <PromptCard
-                        text="What are the key features?"
-                        onClick={() => handleStartChat("What are the key features?")}
-                      />
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="p-4 bg-white/90 backdrop-blur-sm border-t shadow-lg" style={{ borderColor: primaryBorder }}>
-              <div className="bg-gray-50/50 rounded-2xl p-3 border border-gray-200/50 shadow-inner">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 relative group">
-                    <Input
-                      ref={inputRef}
-                      className="w-full rounded-xl border-2 pr-12 pl-4 py-3 transition-all duration-200 placeholder-gray-400 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:border-primary group-hover:border-gray-300 shadow-sm"
-                      style={{
-                        borderColor: primaryBorder,
-                        backgroundColor: 'white',
-                      }}
-                      value={userInput}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => setUserInput(e.target.value)}
-                      placeholder="Type your question here..."
-                      onKeyPress={(e) => e.key === 'Enter' && handleStartChat()}
-                    />
-                  </div>
-                  <Button
-                    className="relative rounded-xl w-10 h-10 p-0 transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
-                    style={{
-                      background: `linear-gradient(135deg, ${primaryColor}, ${primaryColorDark})`,
-                      boxShadow: `0 4px 12px ${primaryColor}20`,
-                    }}
-                    onClick={() => handleStartChat()}
-                    disabled={!userInput.trim()}
-                  >
-                    <Send
-                      className={`h-5 w-5 transition-transform duration-200 ${userInput.trim() ? 'rotate-0' : 'rotate-0 opacity-50'}`}
-                      style={{ color: 'white' }}
-                    />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col h-full">
-            <div
-              ref={conversationScrollRef}
-              className="flex-1 overflow-y-auto p-4 space-y-4"
-              style={{
-                background: `linear-gradient(to bottom, ${primaryColorLight}, ${primaryColorLight.replace('20', '10')})`,
-                minHeight: '0',
-              }}
-            >
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div key={message.id} className="flex flex-col">
-                    <div
-                      className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[85%] p-3 rounded-2xl shadow-md ${
-                          message.sender === 'user'
-                            ? 'rounded-br-md'
-                            : 'rounded-bl-md border backdrop-blur-sm'
-                        }`}
-                        style={{
-                          backgroundColor: message.sender === 'user' ? primaryColor : 'white',
-                          borderColor: message.sender === 'user' ? 'transparent' : primaryBorder,
-                        }}
-                      >
-                        <p className={`break-words text-sm ${message.sender === 'user' ? 'text-white' : 'text-gray-700'}`}>
-                          {message.text.split('\n').map((line, index) => (
-                            <span key={index}>
-                              {line}
-                              {index < message.text.split('\n').length - 1 && <br />}
-                            </span>
-                          ))}
-                        </p>
-                        <span
-                          className={`text-xs mt-1 block text-right ${
-                            message.sender === 'user' ? 'text-white/80' : 'text-gray-500'
-                          }`}
-                        >
-                          {formatTime(message.timestamp)}
-                        </span>
-                      </div>
-                    </div>
-                    {message.quickReplies && message.sender === 'bot' && (
-                      <div className="flex justify-start mt-2 gap-2 flex-wrap">
-                        {message.quickReplies.map((reply, index) => (
-                          <Button
-                            key={index}
-                            variant="outline"
-                            size="sm"
-                            className="px-3 py-1 text-xs rounded-full transition-all hover:scale-105 shadow-sm"
-                            style={{
-                              borderColor: primaryColor300,
-                              color: primaryColor,
-                              backgroundColor: 'white',
-                            }}
-                            onClick={() => handleQuickReply(reply)}
-                          >
-                            {reply}
-                          </Button>
-                        ))}
-                      </div>
-                    )}
-                    {message.suggestedReply && message.sender === 'user' && (
-                      <div className="flex justify-start mt-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="px-3 py-1 text-xs rounded-full border transition-all hover:scale-105 shadow-sm"
-                          style={{
-                            color: primaryColor,
-                            borderColor: primaryBorder,
-                            backgroundColor: 'white',
-                          }}
-                          onClick={() => handleSuggestedReply(message.suggestedReply!)}
-                        >
-                          💡 {message.suggestedReply}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {isTyping && (
-                  <div className="flex justify-start">
-                    <div
-                      className="p-3 rounded-2xl rounded-bl-md border shadow-sm backdrop-blur-sm"
-                      style={{
-                        backgroundColor: 'white',
-                        borderColor: primaryBorder,
-                      }}
-                    >
-                      <div className="flex space-x-1">
-                        <div
-                          className="w-2 h-2 rounded-full animate-bounce"
-                          style={{ backgroundColor: primaryColor }}
-                        />
-                        <div
-                          className="w-2 h-2 rounded-full animate-bounce"
-                          style={{
-                            backgroundColor: primaryColor,
-                            animationDelay: '0.2s',
-                          }}
-                        />
-                        <div
-                          className="w-2 h-2 rounded-full animate-bounce"
-                          style={{
-                            backgroundColor: primaryColor,
-                            animationDelay: '0.4s',
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-            </div>
-            <div
-              className="p-4 bg-white/90 backdrop-blur-sm border-t shadow-lg"
+              className="bg-white/90 backdrop-blur-sm p-2 rounded-2xl border"
               style={{ borderColor: primaryBorder }}
             >
-              <div className="bg-gray-50/50 rounded-2xl p-3 border border-gray-200/50 shadow-inner">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 relative group">
-                    <Input
-                      ref={inputRef}
-                      className="w-full rounded-xl border-2 pr-12 pl-4 py-3 transition-all duration-200 placeholder-gray-400 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:border-primary group-hover:border-gray-300 shadow-sm"
-                      style={{
-                        borderColor: primaryBorder,
-                        backgroundColor: 'white',
-                      }}
-                      value={userInput}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => setUserInput(e.target.value)}
-                      placeholder="Type your message..."
-                      onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                    />
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="p-3 rounded-xl transition-all hover:bg-gray-200/50 hover:scale-105"
-                    style={{
-                      color: primaryColor300,
-                    }}
-                    onClick={handleMicClick}
-                    title="Voice input"
-                  >
-                    <Mic className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    className="relative rounded-xl w-10 h-10 p-0 transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
-                    style={{
-                      background: `linear-gradient(135deg, ${primaryColor}, ${primaryColorDark})`,
-                      boxShadow: `0 4px 12px ${primaryColor}20`,
-                    }}
-                    onClick={() => handleSend()}
-                    disabled={!userInput.trim()}
-                  >
-                    <Send
-                      className={`h-5 w-5 transition-transform duration-200 ${userInput.trim() ? 'rotate-0' : 'rotate-0 opacity-50'}`}
-                      style={{ color: 'white' }}
-                    />
-                  </Button>
+              <div className="flex items-start gap-3 mb-3">
+                <div>
+                  <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
+                    {persona.greeting || `Welcome to ${agentInfo.aiAgentName || "Our AI Agent"}! I'm here to help you learn more about our services, features, and support options. How can I assist you today?`}
+                  </p>
                 </div>
               </div>
+            </div>
+            {agentInfo.domainExpertise && (
+              <div className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border shadow-sm" style={{ borderColor: primaryBorder }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <Star className="h-4 w-4" style={{ color: primaryColor }} />
+                  <h3 className="text-sm font-semibold text-gray-800">Specialized Knowledge</h3>
+                </div>
+                <p className="text-xs text-gray-600">
+                  I specialize in {agentInfo.domainExpertise.toLowerCase()} and can provide detailed information about related services, features, and opportunities.
+                </p>
+              </div>
+            )}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" style={{ color: primaryColor }} />
+                Quick questions to get started:
+              </h3>
+              <div className="grid gap-3">
+                {persona.conversationStarters && persona.conversationStarters.length > 0 ? (
+                  persona.conversationStarters.slice(0, 4).map((starter: string, index: React.Key | null | undefined) => (
+                    <PromptCard
+                      key={index}
+                      text={starter}
+                      onClick={() => handleStarterClick(starter)}
+                    />
+                  ))
+                ) : (
+                  <>
+                    <PromptCard
+                      text="What services do you offer?"
+                      onClick={() => handleStarterClick("What services do you offer?")}
+                    />
+                    <PromptCard
+                      text="How do I get started?"
+                      onClick={() => handleStartChat("How do I get started?")}
+                    />
+                    <PromptCard
+                      text="Tell me about support options"
+                      onClick={() => handleStartChat("Tell me about support options")}
+                    />
+                    <PromptCard
+                      text="What are the key features?"
+                      onClick={() => handleStartChat("What are the key features?")}
+                    />
+                  </>
+                )}
+              </div>
+            </div>
+            <div ref={messagesEndRef} />
+          </div>
+        ) : (
+          <div
+            ref={conversationScrollRef}
+            className="flex-1 overflow-y-auto p-4 space-y-4"
+            style={{
+              background: `linear-gradient(to bottom, ${primaryColorLight}, ${primaryColorLight.replace('20', '10')})`,
+            }}
+          >
+            <div className="space-y-4">
+              {messages.map((message) => (
+                <div key={message.id} className="flex flex-col">
+                  <div
+                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[85%] p-3 rounded-2xl shadow-md ${
+                        message.sender === 'user'
+                          ? 'rounded-br-md'
+                          : 'rounded-bl-md border backdrop-blur-sm'
+                      }`}
+                      style={{
+                        backgroundColor: message.sender === 'user' ? primaryColor : 'white',
+                        borderColor: message.sender === 'user' ? 'transparent' : primaryBorder,
+                      }}
+                    >
+                      <p className={`break-words text-sm ${message.sender === 'user' ? 'text-white' : 'text-gray-700'}`}>
+                        {message.text.split('\n').map((line, index) => (
+                          <span key={index}>
+                            {line}
+                            {index < message.text.split('\n').length - 1 && <br />}
+                          </span>
+                        ))}
+                      </p>
+                      <span
+                        className={`text-xs mt-1 block text-right ${
+                          message.sender === 'user' ? 'text-white/80' : 'text-gray-500'
+                        }`}
+                      >
+                        {formatTime(message.timestamp)}
+                      </span>
+                    </div>
+                  </div>
+                  {message.quickReplies && message.sender === 'bot' && (
+                    <div className="flex justify-start mt-2 gap-2 flex-wrap">
+                      {message.quickReplies.map((reply, index) => (
+                        <Button
+                          key={index}
+                          variant="outline"
+                          size="sm"
+                          className="px-3 py-1 text-xs rounded-full transition-all hover:scale-105 shadow-sm"
+                          style={{
+                            borderColor: primaryColor300,
+                            color: primaryColor,
+                            backgroundColor: 'white',
+                          }}
+                          onClick={() => handleQuickReply(reply)}
+                        >
+                          {reply}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                  {message.suggestedReply && message.sender === 'user' && (
+                    <div className="flex justify-start mt-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="px-3 py-1 text-xs rounded-full border transition-all hover:scale-105 shadow-sm"
+                        style={{
+                          color: primaryColor,
+                          borderColor: primaryBorder,
+                          backgroundColor: 'white',
+                        }}
+                        onClick={() => handleSuggestedReply(message.suggestedReply!)}
+                      >
+                        💡 {message.suggestedReply}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div
+                    className="p-3 rounded-2xl rounded-bl-md border shadow-sm backdrop-blur-sm"
+                    style={{
+                      backgroundColor: 'white',
+                      borderColor: primaryBorder,
+                    }}
+                  >
+                    <div className="flex space-x-1">
+                      <div
+                        className="w-2 h-2 rounded-full animate-bounce"
+                        style={{ backgroundColor: primaryColor }}
+                      />
+                      <div
+                        className="w-2 h-2 rounded-full animate-bounce"
+                        style={{
+                          backgroundColor: primaryColor,
+                          animationDelay: '0.2s',
+                        }}
+                      />
+                      <div
+                        className="w-2 h-2 rounded-full animate-bounce"
+                        style={{
+                          backgroundColor: primaryColor,
+                          animationDelay: '0.4s',
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
             </div>
           </div>
         )}
+
+        {/* Fixed Input Field */}
+        <div
+          className="p-4 bg-white/90 backdrop-blur-sm border-t shadow-lg z-10"
+          style={{
+            borderColor: primaryBorder,
+            position: 'sticky',
+            bottom: 0,
+          }}
+        >
+          <div className="bg-gray-50/50 rounded-2xl p-3 border border-gray-200/50 shadow-inner">
+            <div className="flex items-center gap-2">
+              <div className="flex-1 relative group">
+                <Input
+                  ref={inputRef}
+                  className="w-full rounded-xl border-2 pr-12 pl-4 py-3 transition-all duration-200 placeholder-gray-400 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:border-primary group-hover:border-gray-300 shadow-sm"
+                  style={{
+                    borderColor: primaryBorder,
+                    backgroundColor: 'white',
+                  }}
+                  value={userInput}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setUserInput(e.target.value)}
+                  placeholder={isChatStarted ? "Type your message..." : "Type your question here..."}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && userInput.trim()) {
+                      isChatStarted ? handleSend() : handleStartChat(userInput);
+                    }
+                  }}
+                />
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-3 rounded-xl transition-all hover:bg-gray-200/50 hover:scale-105"
+                style={{
+                  color: primaryColor300,
+                }}
+                onClick={handleMicClick}
+                title="Voice input"
+              >
+                <Mic className="h-4 w-4" />
+              </Button>
+              <Button
+                className="relative rounded-xl w-10 h-10 p-0 transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
+                style={{
+                  background: `linear-gradient(135deg, ${primaryColor}, ${primaryColorDark})`,
+                  boxShadow: `0 4px 12px ${primaryColor}20`,
+                }}
+                onClick={() => (isChatStarted ? handleSend() : handleStartChat(userInput))}
+                disabled={!userInput.trim()}
+              >
+                <Send
+                  className={`h-5 w-5 transition-transform duration-200 ${userInput.trim() ? 'rotate-0' : 'rotate-0 opacity-50'}`}
+                  style={{ color: 'white' }}
+                />
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

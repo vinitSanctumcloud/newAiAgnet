@@ -156,7 +156,7 @@ function Sidebar({ pathname, isSidebarOpen, setIsSidebarOpen, darkMode, toggleDa
                 >
                   <Bot size={18} /> {/* you can use Bot or Cpu icon from lucide-react */}
                 </div>
-                <span>AI Agent</span>
+                <span>Live AI Agent Preview</span>
                 {pathname === '/live_ai-agent' && (
                   <div className="ml-auto w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></div>
                 )}
