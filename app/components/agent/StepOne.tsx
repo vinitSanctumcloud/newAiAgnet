@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -48,34 +48,33 @@ function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
- useEffect(() => {
-  const sanitizeUrl = (url: string) => url.replace(/([^:]\/)\/+/g, '$1');
-
-  if (agentInfo.logoFile) {
-    if (typeof agentInfo.logoFile === 'string') {
-      setLogoPreview(sanitizeUrl(agentInfo.logoFile)); // Fix double slashes
-    } else if (agentInfo.logoFile instanceof File) {
-      const reader = new FileReader();
-      reader.onload = () => setLogoPreview(reader.result as string);
-      reader.readAsDataURL(agentInfo.logoFile);
+  useEffect(() => {
+    // Handle logo preview
+    if (agentInfo.logoFile) {
+      if (typeof agentInfo.logoFile === 'string') {
+        setLogoPreview(agentInfo.logoFile);
+      } else if (agentInfo.logoFile instanceof File) {
+        const reader = new FileReader();
+        reader.onload = () => setLogoPreview(reader.result as string);
+        reader.readAsDataURL(agentInfo.logoFile);
+      }
+    } else {
+      setLogoPreview(null);
     }
-  } else {
-    setLogoPreview(null);
-  }
 
-  if (agentInfo.bannerFile) {
-    if (typeof agentInfo.bannerFile === 'string') {
-      setBannerPreview(sanitizeUrl(agentInfo.bannerFile));
-    } else if (agentInfo.bannerFile instanceof File) {
-      const reader = new FileReader();
-      reader.onload = () => setBannerPreview(reader.result as string);
-      reader.readAsDataURL(agentInfo.bannerFile);
+    // Handle banner preview
+    if (agentInfo.bannerFile) {
+      if (typeof agentInfo.bannerFile === 'string') {
+        setBannerPreview(agentInfo.bannerFile);
+      } else if (agentInfo.bannerFile instanceof File) {
+        const reader = new FileReader();
+        reader.onload = () => setBannerPreview(reader.result as string);
+        reader.readAsDataURL(agentInfo.bannerFile);
+      }
+    } else {
+      setBannerPreview(null);
     }
-  } else {
-    setBannerPreview(null);
-  }
-}, [agentInfo.logoFile, agentInfo.bannerFile]);
-
+  }, [agentInfo.logoFile, agentInfo.bannerFile]);
 
   const validate = (field: ValidatableAgentInfoKeys, value: string | File | null): string | undefined => {
     if (field === 'aiAgentName' && (!value || (typeof value === 'string' && !value.trim())))
@@ -99,9 +98,18 @@ function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
 
   const handleFileChange = (field: 'logoFile' | 'bannerFile', e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
-    if (file && !file.type.startsWith('image/')) {
-      setErrors((prev) => ({ ...prev, [field]: 'Please upload an image file' }));
-      return;
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setErrors((prev) => ({ ...prev, [field]: 'Please upload an image file' }));
+        return;
+      }
+      // Validate file size (5MB for logo, 10MB for banner)
+      const maxSize = field === 'logoFile' ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        setErrors((prev) => ({ ...prev, [field]: `File size exceeds ${maxSize / (1024 * 1024)}MB` }));
+        return;
+      }
     }
     const newAgentInfo = { ...agentInfo, [field]: file };
     onAgentChange(newAgentInfo);
@@ -131,6 +139,10 @@ function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
     onAgentChange(newAgentInfo);
     if (field === 'logoFile') setLogoPreview(null);
     else setBannerPreview(null);
+    if (touched[field]) {
+      const error = validate(field, null);
+      setErrors((prev) => ({ ...prev, [field]: error }));
+    }
   };
 
   const triggerFileInput = (field: 'logoFile' | 'bannerFile') => {

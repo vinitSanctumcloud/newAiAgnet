@@ -24,7 +24,7 @@ function AiAgentInner() {
     conversationFlow: '',
   });
   const [agentInfo, setAgentInfo] = useState<AgentInfo>({
-    userId: '', // Added to match AgentInfo interface
+    userId: '',
     aiAgentName: '',
     agentDescription: '',
     domainExpertise: '',
@@ -33,7 +33,6 @@ function AiAgentInner() {
     manualEntry: [],
     logoFile: null,
     bannerFile: null,
-    // csvFile: null,
   });
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,7 +47,7 @@ function AiAgentInner() {
           if (result.success && result.data) {
             const agent: Agent = result.data;
             setAgentInfo({
-              userId: agent.userId || session.user.id, // Ensure userId is set
+              userId: agent.userId || session.user.id,
               aiAgentName: agent.aiAgentName || '',
               agentDescription: agent.agentDescription || '',
               domainExpertise: agent.domainExpertise || '',
@@ -57,7 +56,6 @@ function AiAgentInner() {
               manualEntry: agent.manualEntry || [],
               logoFile: agent.logoFile || null,
               bannerFile: agent.bannerFile || null,
-              // csvFile: agent.csvFile || null,
             });
             setPersona({
               greeting: agent.greeting || '',
@@ -71,30 +69,15 @@ function AiAgentInner() {
             });
             setCurrentStep(agent.currentStep || 0);
           } else {
-            // No agent found, initialize with default values and userId
             setAgentInfo((prev) => ({
               ...prev,
-              userId: session.user.id, // Set userId even if no agent exists
+              userId: session.user.id,
             }));
-            // Optionally, you can reset persona and currentStep to defaults
-            setPersona({
-              greeting: '',
-              tone: '',
-              customRules: '',
-              conversationStarters: [],
-              languages: '',
-              enableFreeText: true,
-              enableBranchingLogic: true,
-              conversationFlow: '',
-            });
-            setCurrentStep(0);
-            // Optionally, show a toast to inform the user
             toast.info('No existing agent found. Start creating your new AI agent!', { id: 'no-agent-info' });
           }
         } catch (error) {
           console.error('Error fetching agent data:', error);
           toast.error('Failed to fetch agent data. Please try again.', { id: 'fetch-error' });
-          // Ensure userId is set even on error
           setAgentInfo((prev) => ({
             ...prev,
             userId: session.user.id,
@@ -114,12 +97,11 @@ function AiAgentInner() {
     setIsSubmitting(true);
 
     try {
-      let response;
       const formData = new FormData();
       formData.append('userId', session.user.id);
 
       if (currentStep === 0) {
-        // Step 1 submission
+        // Validate Step 1 required fields
         if (!agentInfo.aiAgentName || !agentInfo.agentDescription || !agentInfo.domainExpertise || !agentInfo.logoFile) {
           toast.error('Please fill all required fields in Step 1.', { id: 'step1-error' });
           setIsSubmitting(false);
@@ -139,9 +121,14 @@ function AiAgentInner() {
         } else if (typeof agentInfo.bannerFile === 'string') {
           formData.append('bannerFileUrl', agentInfo.bannerFile);
         }
-        response = await fetch('/api/agent-step1', { method: 'POST', body: formData });
+        const response = await fetch('/api/agent-step1', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to save Step 1 data');
+        }
+        toast.success('Step 1 completed! Moving to Step 2.', { id: 'step1-success' });
       } else if (currentStep === 2) {
-        // Step 2 submission
+        // Validate Step 2
         if (!persona.greeting || !persona.tone || !persona.customRules || !persona.languages || !persona.conversationStarters.length) {
           toast.error('Please fill all required fields in Step 2.', { id: 'step2-error' });
           setIsSubmitting(false);
@@ -155,20 +142,19 @@ function AiAgentInner() {
         formData.append('enableFreeText', persona.enableFreeText.toString());
         formData.append('enableBranchingLogic', persona.enableBranchingLogic.toString());
         formData.append('conversationFlow', persona.conversationFlow);
-        response = await fetch('/api/agent-step2', { method: 'POST', body: formData });
+        const response = await fetch('/api/agent-step2', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to save Step 2 data');
+        }
       } else if (currentStep === 3) {
-        // Step 3 submission
-        if (!agentInfo.manualEntry.length  && !agentInfo.docFiles.length) {
+        // Validate Step 3
+        if (!agentInfo.manualEntry.length && !agentInfo.docFiles.length) {
           toast.error('Please provide at least one FAQ or file in Step 3.', { id: 'step3-error' });
           setIsSubmitting(false);
           return;
         }
         formData.append('manualEntry', JSON.stringify(agentInfo.manualEntry));
-        // if (agentInfo.csvFile instanceof File) {
-        //   formData.append('csvFile', agentInfo.csvFile);
-        // } else if (typeof agentInfo.csvFile === 'string') {
-        //   formData.append('csvFileUrl', agentInfo.csvFile);
-        // }
         if (Array.isArray(agentInfo.docFiles)) {
           agentInfo.docFiles.forEach((file, index) => {
             if (file instanceof File) {
@@ -178,85 +164,44 @@ function AiAgentInner() {
             }
           });
         }
-        response = await fetch('/api/agent-step3', { method: 'POST', body: formData });
+        const response = await fetch('/api/agent-step3', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to save Step 3 data');
+        }
       } else if (currentStep === 4) {
         // Step 4: Fetch data for review
-        response = await fetch(`/api/getAgent?userId=${session.user.id}`);
-      }
-
-      if (!response) {
-        throw new Error('No response from API');
-      }
-
-      const data = await response.json();
-      if (!data.success) {
-        throw new Error(data.message || 'API request failed');
-      }
-
-      if (currentStep === 0) {
-        toast.success('Step 1 completed! Moving to Step 2.', { id: 'step1-success' });
-      }
-
-      if (currentStep < 3) {
-        setCurrentStep((prev) => Math.min(prev + 1, 3));
-        // Refetch agent data for Steps 1-3
-        const fetchResponse = await fetch(`/api/getAgent?userId=${session.user.id}`);
-        const fetchResult = await fetchResponse.json();
-        if (fetchResult.success && fetchResult.data) {
-          const agent: Agent = fetchResult.data;
-          setAgentInfo({
-            userId: agent.userId || session.user.id, // Ensure userId is set
-            aiAgentName: agent.aiAgentName || '',
-            agentDescription: agent.agentDescription || '',
-            domainExpertise: agent.domainExpertise || '',
-            colorTheme: agent.colorTheme || '#007bff',
-            docFiles: agent.docFiles || [],
-            manualEntry: agent.manualEntry || [],
-            logoFile: agent.logoFile || null,
-            bannerFile: agent.bannerFile || null,
-            // csvFile: agent.csvFile || null,
-          });
-          setPersona({
-            greeting: agent.greeting || '',
-            tone: agent.tone || '',
-            customRules: agent.customRules || '',
-            conversationStarters: agent.conversationStarters || [],
-            languages: agent.languages || '',
-            enableFreeText: agent.enableFreeText ?? true,
-            enableBranchingLogic: agent.enableBranchingLogic ?? true,
-            conversationFlow: agent.conversationFlow || '',
-          });
-        } else {
-          // If no agent data is returned, maintain current state but ensure userId is set
-          setAgentInfo((prev) => ({
-            ...prev,
-            userId: session.user.id,
-          }));
+        const response = await fetch(`/api/getAgent?userId=${session.user.id}`);
+        const data = await response.json();
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to fetch agent data');
         }
-      } else {
-        // Step 4: Update state with fetched data
         setAgentInfo({
-          userId: data?.agent?.userId || session.user.id, // Ensure userId is set
-          aiAgentName: data?.agent?.aiAgentName || '',
-          agentDescription: data?.agent?.agentDescription || '',
-          domainExpertise: data?.agent?.domainExpertise || '',
-          colorTheme: data?.agent?.colorTheme || '#007bff',
-          docFiles: data?.agent?.docFiles || [],
-          manualEntry: data?.agent?.manualEntry || [],
-          logoFile: data?.agent?.logoFile || null,
-          bannerFile: data?.agent?.bannerFile || null,
-          // csvFile: data?.agent?.csvFile || null,
+          userId: data.agent?.userId || session.user.id,
+          aiAgentName: data.agent?.aiAgentName || '',
+          agentDescription: data.agent?.agentDescription || '',
+          domainExpertise: data.agent?.domainExpertise || '',
+          colorTheme: data.agent?.colorTheme || '#007bff',
+          docFiles: data.agent?.docFiles || [],
+          manualEntry: data.agent?.manualEntry || [],
+          logoFile: data.agent?.logoFile || null,
+          bannerFile: data.agent?.bannerFile || null,
         });
         setPersona({
-          greeting: data?.agent?.greeting || '',
-          tone: data?.agent?.tone || '',
-          customRules: data?.agent?.customRules || '',
-          conversationStarters: data?.agent?.conversationStarters || [],
-          languages: data?.agent?.languages || '',
-          enableFreeText: data?.agent?.enableFreeText ?? true,
-          enableBranchingLogic: data?.agent?.enableBranchingLogic ?? true,
-          conversationFlow: data?.agent?.conversationFlow || '',
+          greeting: data.agent?.greeting || '',
+          tone: data.agent?.tone || '',
+          customRules: data.agent?.customRules || '',
+          conversationStarters: data.agent?.conversationStarters || [],
+          languages: data.agent?.languages || '',
+          enableFreeText: data.agent?.enableFreeText ?? true,
+          enableBranchingLogic: data.agent?.enableBranchingLogic ?? true,
+          conversationFlow: data.agent?.conversationFlow || '',
         });
+      }
+
+      // Move to the next step (unless on the final step)
+      if (currentStep < 4) {
+        setCurrentStep((prev) => prev + 1);
       }
     } catch (error) {
       console.error('Error submitting step:', error);
@@ -271,14 +216,12 @@ function AiAgentInner() {
     setIsSubmitting(true);
 
     try {
-      // Fetch the latest agent data from the server
       const response = await fetch(`/api/getAgent?userId=${session.user.id}`);
       const result = await response.json();
       if (result.success && result.data) {
         const agent: Agent = result.data;
-        // Update local state with server data
         setAgentInfo({
-          userId: agent.userId || session.user.id, // Ensure userId is set
+          userId: agent.userId || session.user.id,
           aiAgentName: agent.aiAgentName || '',
           agentDescription: agent.agentDescription || '',
           domainExpertise: agent.domainExpertise || '',
@@ -287,7 +230,6 @@ function AiAgentInner() {
           manualEntry: agent.manualEntry || [],
           logoFile: agent.logoFile || null,
           bannerFile: agent.bannerFile || null,
-          // csvFile: agent.csvFile || null,
         });
         setPersona({
           greeting: agent.greeting || '',
@@ -299,24 +241,7 @@ function AiAgentInner() {
           enableBranchingLogic: agent.enableBranchingLogic ?? true,
           conversationFlow: agent.conversationFlow || '',
         });
-      } else {
-        // No agent found, reset to defaults but keep userId
-        setAgentInfo((prev) => ({
-          ...prev,
-          userId: session.user.id,
-        }));
-        setPersona({
-          greeting: '',
-          tone: '',
-          customRules: '',
-          conversationStarters: [],
-          languages: '',
-          enableFreeText: true,
-          enableBranchingLogic: true,
-          conversationFlow: '',
-        });
       }
-      // Move to the previous step
       setCurrentStep((prev) => Math.max(prev - 1, 0));
     } catch (error) {
       console.error('Error fetching agent data on back:', error);
