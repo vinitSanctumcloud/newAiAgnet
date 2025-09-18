@@ -411,12 +411,12 @@ const AIAgentPage: React.FC = () => {
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden border-2 border-white/30">
               {logoPreview ? (
                 <Image
-                  src={logoPreview}
-                  alt="Agent Logo"
-                  width={40}
-                  height={40}
-                  className="object-cover"
-                />
+                   src={logoPreview}
+                   alt="Logo Preview"
+                   width={200}
+                   height={200}
+                   unoptimized={logoPreview.startsWith('data:')} // Skip optimization for base64
+                 />
               ) : (
                 <Bot className="h-5 w-5 text-white" />
               )}
