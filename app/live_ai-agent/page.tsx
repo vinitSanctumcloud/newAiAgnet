@@ -48,25 +48,42 @@ const AIAgentPage: React.FC = () => {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const conversationScrollRef = useRef<HTMLDivElement>(null);
+   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Sanitize URL to remove double slashes
   const sanitizeUrl = (url: string) => url.replace(/([^:]\/)\/+/g, '$1');
 
-  // Handle logo preview generation
-  useEffect(() => {
-    if (agentInfo.logoFile) {
-      if (typeof agentInfo.logoFile === 'string') {
-        setLogoPreview(sanitizeUrl(agentInfo.logoFile));
-      } else if (agentInfo.logoFile instanceof File) {
-        const reader = new FileReader();
-        reader.onload = () => setLogoPreview(reader.result as string);
-        reader.readAsDataURL(agentInfo.logoFile);
-      }
-    } else {
-      setLogoPreview(null);
+useEffect(() => {
+  // Logo
+  if (agentInfo.logoFile) {
+    if (typeof agentInfo.logoFile === 'string') {
+      // Remove any accidental double slashes
+      const cleanedUrl = agentInfo.logoFile.replace(/([^:]\/)\/+/g, '$1');
+      setLogoPreview(cleanedUrl);
+    } else if (agentInfo.logoFile instanceof File) {
+      const reader = new FileReader();
+      reader.onload = () => setLogoPreview(reader.result as string);
+      reader.readAsDataURL(agentInfo.logoFile);
     }
-  }, [agentInfo.logoFile]);
+  } else {
+    setLogoPreview(null);
+  }
+
+  // Banner
+  if (agentInfo.bannerFile) {
+    if (typeof agentInfo.bannerFile === 'string') {
+      const cleanedUrl = agentInfo.bannerFile.replace(/([^:]\/)\/+/g, '$1');
+      setBannerPreview(cleanedUrl);
+    } else if (agentInfo.bannerFile instanceof File) {
+      const reader = new FileReader();
+      reader.onload = () => setBannerPreview(reader.result as string);
+      reader.readAsDataURL(agentInfo.bannerFile);
+    }
+  } else {
+    setBannerPreview(null);
+  }
+}, [agentInfo.logoFile, agentInfo.bannerFile]);
 
   // Fetch agent data from API
   useEffect(() => {
