@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 export default withAuth(
   function middleware(req) {
     if (req.nextUrl.pathname === '/auth/login' && req.nextauth?.token) {
+      console.log(req.nextauth?.token , "dataaaaaa")
       return NextResponse.redirect(new URL('/dashboard', req.url));
     }
     // Redirect /aiagnet to /ai-agent

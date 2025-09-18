@@ -1,23 +1,21 @@
-// app/lib/authOptions.ts
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
-
 import mongoose from 'mongoose';
 import connectDB from '../api/db';
 
-interface User {
+interface MongoUser {
   _id: string;
   email: string;
   password: string;
 }
 
-const userSchema = new mongoose.Schema<User>({
-  email: { type: String, required: true, unique: true },
+const userSchema = new mongoose.Schema<MongoUser>({
+  email: { type: String, required: true, unique: true, trim: true },
   password: { type: String, required: true },
 });
 
-const User = mongoose.models.User || mongoose.model<User>('User', userSchema);
+const User = mongoose.models.User || mongoose.model<MongoUser>('User', userSchema);
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -27,8 +25,10 @@ export const authOptions: NextAuthOptions = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+      async authorize(credentials, req) {
+        if (!credentials?.email || !credentials?.password) {
+          return null;
+        }
         await connectDB();
         const user = await User.findOne({ email: credentials.email });
         if (!user || !(await bcrypt.compare(credentials.password, user.password))) {
@@ -45,25 +45,19 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
   },
-callbacks: {
-  async jwt({ token, user }) {
-    if (user) {
-      // user is of type `User` from authorize() return, so you can safely cast it
-      token.id = (user as { id: string }).id;
-    }
-    return token;
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user && token.id) {
+        session.user.id = token.id as string;
+      }
+      return session;
+    },
   },
-  async session({ session, token }) {
-    if (session.user && token.id) {
-      // session.user doesn't have `id` by default, so extend it with casting
-      session.user = {
-        ...session.user,
-        id: token.id as string,
-      };
-    }
-    return session;
-  },
-},
-
   secret: process.env.NEXTAUTH_SECRET,
 };

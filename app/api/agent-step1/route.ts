@@ -33,12 +33,12 @@ export async function POST(request: Request) {
     }
 
     // File size validation
-    if (logoFile && logoFile.size > 5 * 1024 * 1024) {
-      return NextResponse.json(
-        { success: false, message: 'Logo file size exceeds 5MB' },
-        { status: 400 }
-      );
-    }
+    // if (logoFile && logoFile.size > 5 * 1024 * 1024) {
+    //   return NextResponse.json(
+    //     { success: false, message: 'Logo file size exceeds 5MB' },
+    //     { status: 400 }
+    //   );
+    // }
     if (bannerFile && bannerFile.size > 10 * 1024 * 1024) {
       return NextResponse.json(
         { success: false, message: 'Banner file size exceeds 10MB' },
@@ -52,14 +52,14 @@ export async function POST(request: Request) {
     const savedFiles: { logo?: string; banner?: string } = {};
 
     // Handle logo file or URL
-    if (logoFile && logoFile instanceof File) {
-      const logoFileName = `${Date.now()}-${logoFile.name}`;
-      const logoPath = path.join(uploadDir, logoFileName);
-      await writeFile(logoPath, Buffer.from(await logoFile.arrayBuffer()));
-      savedFiles.logo = `/uploads/${logoFileName}`; // Store relative path
-    } else if (logoFileUrl) {
-      savedFiles.logo = logoFileUrl; // Use existing URL
-    }
+    // if (logoFile && logoFile instanceof File) {
+    //   const logoFileName = `${Date.now()}-${logoFile.name}`;
+    //   const logoPath = path.join(uploadDir, logoFileName);
+    //   await writeFile(logoPath, Buffer.from(await logoFile.arrayBuffer()));
+    //   savedFiles.logo = `/uploads/${logoFileName}`; // Store relative path
+    // } else if (logoFileUrl) {
+    //   savedFiles.logo = logoFileUrl; // Use existing URL
+    // }
 
     // Handle banner file or URL (optional)
     if (bannerFile && bannerFile instanceof File) {
