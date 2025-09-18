@@ -1,4 +1,6 @@
-import { useState, useRef, useEffect, ChangeEvent } from 'react';
+'use client'; // Ensure this component runs only on the client side
+
+import { useState, useRef, useEffect, ChangeEvent, FormEvent } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,9 +26,10 @@ type ValidatableAgentInfoKeys = {
 interface StepOneProps {
   onAgentChange: (agent: AgentInfo) => void;
   agentInfo: AgentInfo;
+  onSubmit?: () => Promise<void>; // Optional prop for custom submission logic
 }
 
-function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
+function StepOne({ onAgentChange, agentInfo, onSubmit }: StepOneProps) {
   const [errors, setErrors] = useState<Partial<Record<keyof AgentInfo, string>>>({});
   const [touched, setTouched] = useState<Partial<Record<keyof AgentInfo, boolean>>>({});
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -150,10 +153,73 @@ function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
     inputRef.current?.click();
   };
 
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+
+    // Validate all fields
+    const newErrors: Partial<Record<keyof AgentInfo, string>> = {};
+    (['aiAgentName', 'agentDescription', 'domainExpertise', 'logoFile'] as ValidatableAgentInfoKeys[]).forEach((field) => {
+      const error = validate(field, agentInfo[field]);
+      if (error) newErrors[field] = error;
+    });
+    setErrors(newErrors);
+    setTouched({
+      aiAgentName: true,
+      agentDescription: true,
+      domainExpertise: true,
+      logoFile: true,
+      colorTheme: true,
+    });
+
+    // If there are errors, stop submission
+    if (Object.keys(newErrors).length > 0) {
+      return;
+    }
+
+    // Prepare FormData for file uploads
+    const formData = new FormData();
+    formData.append('aiAgentName', agentInfo.aiAgentName);
+    formData.append('agentDescription', agentInfo.agentDescription);
+    formData.append('domainExpertise', agentInfo.domainExpertise);
+    formData.append('colorTheme', agentInfo.colorTheme);
+    if (agentInfo.logoFile instanceof File) {
+      formData.append('logoFile', agentInfo.logoFile);
+    }
+    if (agentInfo.bannerFile instanceof File) {
+      formData.append('bannerFile', agentInfo.bannerFile);
+    }
+
+    try {
+      // Send FormData to an API route
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit form');
+      }
+
+      const result = await response.json();
+      console.log('Form submitted successfully:', result);
+
+      // Optionally call onSubmit if provided
+      if (onSubmit) {
+        await onSubmit();
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      setErrors((prev) => ({
+        ...prev,
+        general: 'Failed to submit form. Please try again.',
+      }));
+    }
+  };
+
   const RequiredSymbol = () => <span className="text-red-500 ml-1">*</span>;
 
   return (
-    <div className="dark:bg-gray-900 flex items-center justify-center">
+    <form onSubmit={handleSubmit} className="dark:bg-gray-900 flex items-center justify-center">
       <Card className="w-full bg-white dark:bg-gray-800 rounded-2xl overflow-hidden">
         <CardHeader>
           <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
@@ -403,6 +469,18 @@ function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
               </div>
             </div>
           </div>
+          {/* {errors.general && (
+            <p className="text-red-500 text-sm mt-4 flex items-center gap-1">
+              <AlertCircle className="h-4 w-4" />
+              {errors.general}
+            </p>
+          )} */}
+          {/* <Button
+            type="submit"
+            className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+          >
+            Submit
+          </Button> */}
         </CardContent>
       </Card>
 
@@ -449,7 +527,7 @@ function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </form>
   );
 }
 
