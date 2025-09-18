@@ -48,31 +48,34 @@ function StepOne({ onAgentChange, agentInfo }: StepOneProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (agentInfo.logoFile) {
-      if (typeof agentInfo.logoFile === 'string') {
-        setLogoPreview(agentInfo.logoFile); // Use URL directly
-      } else if (agentInfo.logoFile instanceof File) {
-        const reader = new FileReader();
-        reader.onload = () => setLogoPreview(reader.result as string);
-        reader.readAsDataURL(agentInfo.logoFile);
-      }
-    } else {
-      setLogoPreview(null);
-    }
+ useEffect(() => {
+  const sanitizeUrl = (url: string) => url.replace(/([^:]\/)\/+/g, '$1');
 
-    if (agentInfo.bannerFile) {
-      if (typeof agentInfo.bannerFile === 'string') {
-        setBannerPreview(agentInfo.bannerFile); // Use URL directly
-      } else if (agentInfo.bannerFile instanceof File) {
-        const reader = new FileReader();
-        reader.onload = () => setBannerPreview(reader.result as string);
-        reader.readAsDataURL(agentInfo.bannerFile);
-      }
-    } else {
-      setBannerPreview(null);
+  if (agentInfo.logoFile) {
+    if (typeof agentInfo.logoFile === 'string') {
+      setLogoPreview(sanitizeUrl(agentInfo.logoFile)); // Fix double slashes
+    } else if (agentInfo.logoFile instanceof File) {
+      const reader = new FileReader();
+      reader.onload = () => setLogoPreview(reader.result as string);
+      reader.readAsDataURL(agentInfo.logoFile);
     }
-  }, [agentInfo.logoFile, agentInfo.bannerFile]);
+  } else {
+    setLogoPreview(null);
+  }
+
+  if (agentInfo.bannerFile) {
+    if (typeof agentInfo.bannerFile === 'string') {
+      setBannerPreview(sanitizeUrl(agentInfo.bannerFile));
+    } else if (agentInfo.bannerFile instanceof File) {
+      const reader = new FileReader();
+      reader.onload = () => setBannerPreview(reader.result as string);
+      reader.readAsDataURL(agentInfo.bannerFile);
+    }
+  } else {
+    setBannerPreview(null);
+  }
+}, [agentInfo.logoFile, agentInfo.bannerFile]);
+
 
   const validate = (field: ValidatableAgentInfoKeys, value: string | File | null): string | undefined => {
     if (field === 'aiAgentName' && (!value || (typeof value === 'string' && !value.trim())))
