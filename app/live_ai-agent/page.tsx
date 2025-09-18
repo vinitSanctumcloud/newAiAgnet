@@ -439,18 +439,7 @@ const AIAgentPage: React.FC = () => {
               background: `linear-gradient(to bottom, ${primaryColorLight}, ${primaryColorLight.replace('20', '10')})`,
             }}
           >
-            <div
-              className="bg-white/90 backdrop-blur-sm p-2 rounded-2xl border"
-              style={{ borderColor: primaryBorder }}
-            >
-              <div className="flex items-start gap-3 mb-3">
-                <div>
-                  <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
-                    {persona.greeting || `Welcome to ${agentInfo.aiAgentName || "Our AI Agent"}! I'm here to help you learn more about our services, features, and support options. How can I assist you today?`}
-                  </p>
-                </div>
-              </div>
-            </div>
+           
             {agentInfo.domainExpertise && (
               <div className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border shadow-sm" style={{ borderColor: primaryBorder }}>
                 <div className="flex items-center gap-2 mb-3">
