@@ -126,7 +126,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error in Step 1 API:', error);
     return NextResponse.json(
-      { success: false, message: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` },
+      { success: false, message: `Internal server errorqqqq: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     );
   }
