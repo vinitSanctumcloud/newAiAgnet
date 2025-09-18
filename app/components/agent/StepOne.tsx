@@ -51,33 +51,37 @@ function StepOne({ onAgentChange, agentInfo, onSubmit }: StepOneProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    // Handle logo preview
-    if (agentInfo.logoFile) {
-      if (typeof agentInfo.logoFile === 'string') {
-        setLogoPreview(agentInfo.logoFile);
-      } else if (agentInfo.logoFile instanceof File) {
-        const reader = new FileReader();
-        reader.onload = () => setLogoPreview(reader.result as string);
-        reader.readAsDataURL(agentInfo.logoFile);
-      }
-    } else {
-      setLogoPreview(null);
+useEffect(() => {
+  // Logo
+  if (agentInfo.logoFile) {
+    if (typeof agentInfo.logoFile === 'string') {
+      // Remove any accidental double slashes
+      const cleanedUrl = agentInfo.logoFile.replace(/([^:]\/)\/+/g, '$1');
+      setLogoPreview(cleanedUrl);
+    } else if (agentInfo.logoFile instanceof File) {
+      const reader = new FileReader();
+      reader.onload = () => setLogoPreview(reader.result as string);
+      reader.readAsDataURL(agentInfo.logoFile);
     }
+  } else {
+    setLogoPreview(null);
+  }
 
-    // Handle banner preview
-    if (agentInfo.bannerFile) {
-      if (typeof agentInfo.bannerFile === 'string') {
-        setBannerPreview(agentInfo.bannerFile);
-      } else if (agentInfo.bannerFile instanceof File) {
-        const reader = new FileReader();
-        reader.onload = () => setBannerPreview(reader.result as string);
-        reader.readAsDataURL(agentInfo.bannerFile);
-      }
-    } else {
-      setBannerPreview(null);
+  // Banner
+  if (agentInfo.bannerFile) {
+    if (typeof agentInfo.bannerFile === 'string') {
+      const cleanedUrl = agentInfo.bannerFile.replace(/([^:]\/)\/+/g, '$1');
+      setBannerPreview(cleanedUrl);
+    } else if (agentInfo.bannerFile instanceof File) {
+      const reader = new FileReader();
+      reader.onload = () => setBannerPreview(reader.result as string);
+      reader.readAsDataURL(agentInfo.bannerFile);
     }
-  }, [agentInfo.logoFile, agentInfo.bannerFile]);
+  } else {
+    setBannerPreview(null);
+  }
+}, [agentInfo.logoFile, agentInfo.bannerFile]);
+
 
   const validate = (field: ValidatableAgentInfoKeys, value: string | File | null): string | undefined => {
     if (field === 'aiAgentName' && (!value || (typeof value === 'string' && !value.trim())))
@@ -340,13 +344,13 @@ function StepOne({ onAgentChange, agentInfo, onSubmit }: StepOneProps) {
                       <div className="relative">
                         <div className="w-full h-40 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center">
                           {logoPreview ? (
-                            <Image
-                              src={logoPreview}
-                              alt="Logo preview"
-                              className="object-contain max-h-36 w-full"
-                              width={300}
-                              height={144}
-                            />
+                             <Image
+    src={logoPreview}
+    alt="Logo Preview"
+    width={200}
+    height={200}
+    unoptimized={logoPreview.startsWith('data:')} // Skip optimization for base64
+  />
                           ) : (
                             <ImageIcon className="h-16 w-16 text-gray-400" />
                           )}
