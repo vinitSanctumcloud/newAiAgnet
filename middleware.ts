@@ -33,6 +33,5 @@ export const config = {
     '/api/agent-step1',
     '/api/agent-step2',
     '/api/agent-step3',
-    '/api/getAgent',
   ],
 };
