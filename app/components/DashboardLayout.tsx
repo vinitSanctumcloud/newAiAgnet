@@ -122,21 +122,21 @@ function Sidebar({ pathname, isSidebarOpen, setIsSidebarOpen, darkMode, toggleDa
             </li>
             <li>
               <Link
-                href="/aiagnet"
+                href="/aiagent"
                 onClick={() => setIsSidebarOpen(false)}
-                className={`flex items-center p-2 rounded-lg transition-all duration-200 group ${pathname === '/aiagnet'
+                className={`flex items-center p-2 rounded-lg transition-all duration-200 group ${pathname === '/aiagent'
                   ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
                   : 'hover:bg-gray-100 dark:hover:bg-gray-700/70'
                   }`}
               >
-                <div className={`p-1.5 rounded-md mr-2 ${pathname === '/aiagnet'
+                <div className={`p-1.5 rounded-md mr-2 ${pathname === '/aiagent'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-blue-100 group-hover:text-blue-600 dark:group-hover:bg-blue-900/40 dark:group-hover:text-blue-300'
                   }`}>
                   <User size={18} />
                 </div>
                 <span>AI Agent</span>
-                {pathname === '/aiagnet' && <div className="ml-auto w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></div>}
+                {pathname === '/aiagent' && <div className="ml-auto w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></div>}
               </Link>
             </li>
             <li>

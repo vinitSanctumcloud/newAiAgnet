@@ -8,7 +8,7 @@ export default withAuth(
       return NextResponse.redirect(new URL('/dashboard', req.url));
     }
     // Redirect /aiagnet to /ai-agent
-    if (req.nextUrl.pathname === '/aiagnet') {
+    if (req.nextUrl.pathname === '/aiagent') {
       return NextResponse.redirect(new URL('/ai-agent', req.url));
     }
     return NextResponse.next();

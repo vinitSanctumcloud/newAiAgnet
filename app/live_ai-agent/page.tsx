@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Send, Mic, ArrowLeft, Bot, RefreshCw, Minimize2, MessageSquare, Star, ChevronRight } from 'lucide-react';
 import { AgentInfo, Persona, Agent } from '@/app/lib/type';
+import Link from 'next/link';
 
 interface Message {
   id: string;
@@ -43,7 +44,7 @@ const AIAgentPage: React.FC = () => {
     bannerFile: null,
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [noAgentMessage, setNoAgentMessage] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const conversationScrollRef = useRef<HTMLDivElement>(null);
@@ -76,6 +77,11 @@ const AIAgentPage: React.FC = () => {
         const result = await response.json();
 
         if (!result.success) {
+          if (result.message.includes('not found') || result.message.includes('No agent')) {
+            setNoAgentMessage('It looks like you haven’t created an AI agent yet. Create one now to get started!');
+            setIsLoading(false);
+            return;
+          }
           throw new Error(result.message || 'Failed to fetch agent data');
         }
 
@@ -105,9 +111,9 @@ const AIAgentPage: React.FC = () => {
         });
 
         setIsLoading(false);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching agent data:', err);
-        setError('Failed to load agent data. Using default settings.');
+        setNoAgentMessage('Failed to load agent data. Please try again later.');
         setIsLoading(false);
       }
     };
@@ -327,10 +333,22 @@ const AIAgentPage: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (noAgentMessage) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
-        <p className="text-red-500">{error}</p>
+        <div className="text-center">
+          <p className="text-gray-700 mb-4">{noAgentMessage}</p>
+          <Link href="/aiagent">
+            <Button
+              className="rounded-xl transition-all hover:scale-105 shadow-md"
+              style={{
+                background: `linear-gradient(135deg, ${primaryColor}, ${primaryColorDark})`,
+              }}
+            >
+              Create Agent
+            </Button>
+          </Link>
+        </div>
       </div>
     );
   }
@@ -439,7 +457,6 @@ const AIAgentPage: React.FC = () => {
               background: `linear-gradient(to bottom, ${primaryColorLight}, ${primaryColorLight.replace('20', '10')})`,
             }}
           >
-           
             {agentInfo.domainExpertise && (
               <div className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border shadow-sm" style={{ borderColor: primaryBorder }}>
                 <div className="flex items-center gap-2 mb-3">
