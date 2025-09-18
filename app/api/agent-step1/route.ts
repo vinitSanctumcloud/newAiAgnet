@@ -4,29 +4,48 @@ import path from 'path';
 import agentModel, { getOrCreateAgent } from '@/app/lib/agentModel';
 import connectDB from '../db';
 
+function isFileLike(obj: any): obj is { arrayBuffer: () => Promise<ArrayBuffer>; name: string; type: string; size: number } {
+  return (
+    obj &&
+    typeof obj.arrayBuffer === 'function' &&
+    typeof obj.name === 'string' &&
+    typeof obj.type === 'string' &&
+    typeof obj.size === 'number'
+  );
+}
+
 export async function POST(request: Request) {
   try {
     await connectDB();
+
     const formData = await request.formData();
     const userId = formData.get('userId') as string;
     const aiAgentName = formData.get('aiAgentName') as string;
     const agentDescription = formData.get('agentDescription') as string;
     const domainExpertise = formData.get('domainExpertise') as string;
     const colorTheme = formData.get('colorTheme') as string;
-    const logoFile = formData.get('logoFile') as File | null;
-    const bannerFile = formData.get('bannerFile') as File | null;
+
+    const logoFile = formData.get('logoFile');
+    const bannerFile = formData.get('bannerFile');
+
     const logoFileUrl = formData.get('logoFileUrl') as string | null;
     const bannerFileUrl = formData.get('bannerFileUrl') as string | null;
 
-    // Log received data for debugging
-    console.log({ userId, aiAgentName, agentDescription, domainExpertise, colorTheme, logoFile, bannerFile, logoFileUrl, bannerFileUrl }, 'Data from request');
+    console.log({
+      userId,
+      aiAgentName,
+      agentDescription,
+      domainExpertise,
+      colorTheme,
+      logoFile,
+      bannerFile,
+      logoFileUrl,
+      bannerFileUrl
+    }, 'Data from request');
 
-    // Validate required fields
+    // Required field validations
     if (!userId) {
-      return NextResponse.json(
-        { success: false, message: 'User ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'User ID is required' }, { status: 400 });
     }
     if (!aiAgentName || !agentDescription || !domainExpertise) {
       return NextResponse.json(
@@ -34,6 +53,7 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
     if (!logoFile && !logoFileUrl) {
       return NextResponse.json(
         { success: false, message: 'Logo file or URL is required' },
@@ -42,53 +62,58 @@ export async function POST(request: Request) {
     }
 
     // File size validation
-    if (logoFile && logoFile.size > 5 * 1024 * 1024) {
+    if (isFileLike(logoFile) && logoFile.size > 5 * 1024 * 1024) {
       return NextResponse.json(
         { success: false, message: 'Logo file size exceeds 5MB' },
         { status: 400 }
       );
     }
-    if (bannerFile && bannerFile.size > 10 * 1024 * 1024) {
+
+    if (isFileLike(bannerFile) && bannerFile.size > 10 * 1024 * 1024) {
       return NextResponse.json(
         { success: false, message: 'Banner file size exceeds 10MB' },
         { status: 400 }
       );
     }
 
-    // Validate file types
-    if (logoFile && !logoFile.type.startsWith('image/')) {
+    // File type validation
+    if (isFileLike(logoFile) && !logoFile.type.startsWith('image/')) {
       return NextResponse.json(
         { success: false, message: 'Logo must be an image file' },
         { status: 400 }
       );
     }
-    if (bannerFile && !bannerFile.type.startsWith('image/')) {
+
+    if (isFileLike(bannerFile) && !bannerFile.type.startsWith('image/')) {
       return NextResponse.json(
         { success: false, message: 'Banner must be an image file' },
         { status: 400 }
       );
     }
 
+    // Create upload directory if not exists
     const uploadDir = path.join(process.cwd(), 'public/uploads');
     await mkdir(uploadDir, { recursive: true });
 
     const savedFiles: { logo?: string; banner?: string } = {};
 
-    // Handle logo file
-    if (logoFile && logoFile instanceof File) {
+    // Save logo file
+    if (isFileLike(logoFile)) {
       const logoFileName = `${Date.now()}-${logoFile.name}`;
       const logoPath = path.join(uploadDir, logoFileName);
-      await writeFile(logoPath, Buffer.from(await logoFile.arrayBuffer()));
+      const buffer = Buffer.from(await logoFile.arrayBuffer());
+      await writeFile(logoPath, buffer);
       savedFiles.logo = `/uploads/${logoFileName}`;
     } else if (logoFileUrl) {
       savedFiles.logo = logoFileUrl;
     }
 
-    // Handle banner file (optional)
-    if (bannerFile && bannerFile instanceof File) {
+    // Save banner file (optional)
+    if (isFileLike(bannerFile)) {
       const bannerFileName = `${Date.now()}-${bannerFile.name}`;
       const bannerPath = path.join(uploadDir, bannerFileName);
-      await writeFile(bannerPath, Buffer.from(await bannerFile.arrayBuffer()));
+      const buffer = Buffer.from(await bannerFile.arrayBuffer());
+      await writeFile(bannerPath, buffer);
       savedFiles.banner = `/uploads/${bannerFileName}`;
     } else if (bannerFileUrl) {
       savedFiles.banner = bannerFileUrl;
@@ -123,10 +148,14 @@ export async function POST(request: Request) {
       },
       { status: 200 }
     );
+
   } catch (error) {
     console.error('Error in Step 1 API:', error);
     return NextResponse.json(
-      { success: false, message: `Internal server errorqqqq: ${error instanceof Error ? error.message : 'Unknown error'}` },
+      {
+        success: false,
+        message: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      },
       { status: 500 }
     );
   }
