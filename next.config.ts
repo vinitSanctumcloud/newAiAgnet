@@ -1,15 +1,18 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // Disable the development indicator (bottom-left "Next.js" badge)
-
   images: {
     remotePatterns: [
       {
         protocol: 'http',
         hostname: 'localhost',
-        port: '3000', // Specify the port if needed
-        pathname: '/uploads/**', // Adjust the pathname to match your uploads directory
+        port: '3000',
+        pathname: '/uploads/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'dcg000wo8wggwkskoks4g0s4.prod.sanctumcloud.com',
+        pathname: '/uploads/**', // Allow optimized access to images in production
       },
     ],
   },
@@ -19,8 +22,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-
-  // Add any other config options here
 };
 
 export default nextConfig;
