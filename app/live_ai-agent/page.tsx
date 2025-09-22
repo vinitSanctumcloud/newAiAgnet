@@ -4,8 +4,11 @@ import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Send, Mic, ArrowLeft, Bot, RefreshCw, Minimize2, MessageSquare, Star, ChevronRight } from 'lucide-react';
-import { AgentInfo, Persona, Agent } from '@/lib/type';
+import { AgentInfo, Persona } from '@/lib/type';
 import Link from 'next/link';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState, AppDispatch } from '@/store';
+import { fetchUserAgent } from '@/store/slice/agentSlice';
 
 interface Message {
   id: string;
@@ -17,6 +20,9 @@ interface Message {
 }
 
 const AIAgentPage: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>();
+  const { agents, loading, error } = useSelector((state: RootState) => state.agent);
+
   const [userInput, setUserInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -43,118 +49,134 @@ const AIAgentPage: React.FC = () => {
     docFiles: [],
     bannerFile: null,
   });
-  const [isLoading, setIsLoading] = useState(true);
   const [noAgentMessage, setNoAgentMessage] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const conversationScrollRef = useRef<HTMLDivElement>(null);
-   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Sanitize URL to remove double slashes
   const sanitizeUrl = (url: string) => url.replace(/([^:]\/)\/+/g, '$1');
 
-useEffect(() => {
-  // Logo
-  if (agentInfo.logoFile) {
-    if (typeof agentInfo.logoFile === 'string') {
-      // Remove any accidental double slashes
-      const cleanedUrl = agentInfo.logoFile.replace(/([^:]\/)\/+/g, '$1');
-      setLogoPreview(cleanedUrl);
-    } else if (agentInfo.logoFile instanceof File) {
-      const reader = new FileReader();
-      reader.onload = () => setLogoPreview(reader.result as string);
-      reader.readAsDataURL(agentInfo.logoFile);
-    }
-  } else {
-    setLogoPreview(null);
-  }
-
-  // Banner
-  if (agentInfo.bannerFile) {
-    if (typeof agentInfo.bannerFile === 'string') {
-      const cleanedUrl = agentInfo.bannerFile.replace(/([^:]\/)\/+/g, '$1');
-      setBannerPreview(cleanedUrl);
-    } else if (agentInfo.bannerFile instanceof File) {
-      const reader = new FileReader();
-      reader.onload = () => setBannerPreview(reader.result as string);
-      reader.readAsDataURL(agentInfo.bannerFile);
-    }
-  } else {
-    setBannerPreview(null);
-  }
-}, [agentInfo.logoFile, agentInfo.bannerFile]);
-
-  // Fetch agent data from API
+  // Handle logo and banner previews
   useEffect(() => {
-    const fetchAgentData = async () => {
-      try {
-        const userId = '68bfc39b41f0e4a580b257d0';
-        const response = await fetch(`/api/getAgent?userId=${userId}`);
-        const result = await response.json();
+    let logoReader: FileReader | null = null;
+    let bannerReader: FileReader | null = null;
 
-        if (!result.success) {
-          if (result.message.includes('not found') || result.message.includes('No agent')) {
-            setNoAgentMessage('It looks like you haven’t created an AI agent yet. Create one now to get started!');
-            setIsLoading(false);
-            return;
-          }
-          throw new Error(result.message || 'Failed to fetch agent data');
-        }
+    const setPreview = (file: string | File | null, setPreviewFn: (url: string | null) => void) => {
+      if (!file) {
+        setPreviewFn(null);
+        return;
+      }
 
-        const agentData: Agent = result.data;
-
-        setAgentInfo({
-          userId: agentData.userId || '',
-          aiAgentName: agentData.aiAgentName || 'Default AI Agent',
-          agentDescription: agentData.agentDescription || 'A versatile AI assistant',
-          domainExpertise: agentData.domainExpertise || 'General Assistance',
-          colorTheme: agentData.colorTheme || '#007bff',
-          manualEntry: agentData.manualEntry || [],
-          logoFile: agentData.logoFile || null,
-          docFiles: agentData.docFiles || [],
-          bannerFile: agentData.bannerFile || null,
-        });
-
-        setPersona({
-          greeting: agentData.greeting || 'Hello! How can I assist you today?',
-          conversationStarters: agentData.conversationStarters || ['What services do you offer?', 'How do I get started?', 'Tell me about support options'],
-          tone: agentData.tone || 'Friendly',
-          customRules: agentData.customRules || '',
-          conversationFlow: agentData.conversationFlow || '',
-          languages: agentData.languages || 'English',
-          enableFreeText: agentData.enableFreeText ?? true,
-          enableBranchingLogic: agentData.enableBranchingLogic ?? true,
-        });
-
-        setIsLoading(false);
-      } catch (err: any) {
-        console.error('Error fetching agent data:', err);
-        setNoAgentMessage('Failed to load agent data. Please try again later.');
-        setIsLoading(false);
+      if (typeof file === 'string') {
+        const domain = 'https://qkkso80gw8ss0kscc8c4skkg.prod.sanctumcloud.com';
+        const isAbsoluteUrl = /^https?:\/\//i.test(file);
+        const cleanedUrl = isAbsoluteUrl
+          ? file
+          : file.startsWith('/')
+          ? `${domain}${sanitizeUrl(file)}`
+          : `${domain}/${sanitizeUrl(file)}`;
+        setPreviewFn(cleanedUrl);
+      } else if (file instanceof File) {
+        const reader = new FileReader();
+        if (file === agentInfo.logoFile) logoReader = reader;
+        if (file === agentInfo.bannerFile) bannerReader = reader;
+        reader.onload = () => setPreviewFn(reader.result as string);
+        reader.readAsDataURL(file);
       }
     };
 
-    fetchAgentData();
-  }, []);
+    setPreview(agentInfo.logoFile, setLogoPreview);
+    setPreview(agentInfo.bannerFile, setBannerPreview);
+
+    return () => {
+      if (logoReader) logoReader.abort();
+      if (bannerReader) bannerReader.abort();
+    };
+  }, [agentInfo.logoFile, agentInfo.bannerFile]);
+
+  // Fetch agent data using Redux
+  useEffect(() => {
+    dispatch(fetchUserAgent());
+  }, [dispatch]);
+
+  // Update agentInfo and persona when Redux state changes
+  useEffect(() => {
+    if (loading) {
+      setNoAgentMessage(null);
+      return;
+    }
+
+    if (error) {
+      if (error.includes('not found') || error.includes('No agent')) {
+        setNoAgentMessage('It looks like you haven’t created an AI agent yet. Create one now to get started!');
+      } else {
+        setNoAgentMessage('Failed to load agent data. Please try again later.');
+      }
+      return;
+    }
+
+    if (agents.length > 0) {
+      const agentData = agents[0]; // Assuming you want the first agent
+      setAgentInfo({
+        userId: agentData.userId || '',
+        aiAgentName: agentData.aiAgentName || 'Default AI Agent',
+        agentDescription: agentData.agentDescription || 'A versatile AI assistant',
+        domainExpertise: agentData.domainExpertise || 'General Assistance',
+        colorTheme: agentData.colorTheme || '#007bff',
+        manualEntry: agentData.manualEntry
+          ? agentData.manualEntry.map((entry: any) => ({
+              ...entry,
+              _id: entry._id ? entry._id.toString() : undefined,
+            }))
+          : [],
+        logoFile: agentData.logoFile || null,
+        docFiles: agentData.docFiles || [],
+        bannerFile: agentData.bannerFile || null,
+      });
+
+      setPersona({
+        greeting: agentData.greeting || 'Hello! How can I assist you today?',
+        conversationStarters: agentData.conversationStarters || ['What services do you offer?', 'How do I get started?', 'Tell me about support options'],
+        tone: agentData.tone || 'Friendly',
+        customRules: agentData.customRules || '',
+        conversationFlow: agentData.conversationFlow || '',
+        languages: agentData.languages || 'English',
+        enableFreeText: agentData.enableFreeText ?? true,
+        enableBranchingLogic: agentData.enableBranchingLogic ?? true,
+      });
+
+      setNoAgentMessage(null);
+    }
+  }, [agents, loading, error]);
 
   // Load messages from localStorage on component mount
   useEffect(() => {
     const savedMessages = localStorage.getItem('chatMessages');
     if (savedMessages) {
-      const parsedMessages: Message[] = JSON.parse(savedMessages).map((msg: Message) => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp),
-      }));
-      setMessages(parsedMessages);
-      setIsChatStarted(parsedMessages.length > 0);
+      try {
+        const parsedMessages: Message[] = JSON.parse(savedMessages).map((msg: Message) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+        }));
+        setMessages(parsedMessages);
+        setIsChatStarted(parsedMessages.length > 0);
+      } catch (err) {
+        console.error('Error parsing chat messages from localStorage:', err);
+      }
     }
   }, []);
 
   // Save messages to localStorage whenever messages change
   useEffect(() => {
     if (messages.length > 0) {
-      localStorage.setItem('chatMessages', JSON.stringify(messages));
+      try {
+        localStorage.setItem('chatMessages', JSON.stringify(messages));
+      } catch (err) {
+        console.error('Error saving chat messages to localStorage:', err);
+      }
     } else {
       localStorage.removeItem('chatMessages');
     }
@@ -342,7 +364,7 @@ useEffect(() => {
     </div>
   );
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
         <p>Loading agent data...</p>
@@ -428,12 +450,12 @@ useEffect(() => {
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden border-2 border-white/30">
               {logoPreview ? (
                 <Image
-                   src={logoPreview}
-                   alt="Logo Preview"
-                   width={200}
-                   height={200}
-                   unoptimized={logoPreview.startsWith('data:')} // Skip optimization for base64
-                 />
+                  src={logoPreview}
+                  alt="Logo Preview"
+                  width={200}
+                  height={200}
+                  unoptimized={logoPreview.startsWith('data:')} // Skip optimization for base64
+                />
               ) : (
                 <Bot className="h-5 w-5 text-white" />
               )}
