@@ -4,18 +4,18 @@
 // Now the main Dashboard.tsx
 'use client';
 
-import { useSession } from 'next-auth/react';
+// import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import DashboardLayout from '../components/DashboardLayout';
-import MetricCard from '../components/dashboard/MetricCard';
-import ProgressCard from '../components/dashboard/ProgressCard';
-import LineChartComponent from '../components/dashboard/LineChartComponent';
-import BarChartComponent from '../components/dashboard/BarChartComponent';
-import PieChartComponent from '../components/dashboard/PieChartComponent';
-import AreaChartComponent from '../components/dashboard/AreaChartComponent';
-import TableComponent from '../components/dashboard/TableComponent';
-import AlertCard from '../components/dashboard/AlertCard';
+import DashboardLayout from '../../components/DashboardLayout';
+import MetricCard from '../../components/dashboard/MetricCard';
+import ProgressCard from '../../components/dashboard/ProgressCard';
+import LineChartComponent from '../../components/dashboard/LineChartComponent';
+import BarChartComponent from '../../components/dashboard/BarChartComponent';
+import PieChartComponent from '../../components/dashboard/PieChartComponent';
+import AreaChartComponent from '../../components/dashboard/AreaChartComponent';
+import TableComponent from '../../components/dashboard/TableComponent';
+import AlertCard from '../../components/dashboard/AlertCard';
 
 // Mock data
 const lineChartData = [
@@ -141,7 +141,7 @@ const alerts = [
 ];
 
 export default function Dashboard() {
-  const { data: session, status } = useSession();
+  // const { data: session, status } = useSession();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
@@ -149,18 +149,18 @@ export default function Dashboard() {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (status === 'loading') return;
-    if (!session || !session.user) {
-      router.push('/auth/login');
-    }
-  }, [session, status, router]);
+  // useEffect(() => {
+  //   if (status === 'loading') return;
+  //   if (!session || !session.user) {
+  //     router.push('/auth/login');
+  //   }
+  // }, [session, status, router]);
 
-  if (status === 'loading' || !mounted) {
-    return <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">Loading...</div>;
-  }
+  // if (status === 'loading' || !mounted) {
+  //   return <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">Loading...</div>;
+  // }
 
-  if (session && session.user) {
+
     return (
       <DashboardLayout>
         <div className="space-y-8 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen transition-colors duration-300">
@@ -194,7 +194,7 @@ export default function Dashboard() {
         </div>
       </DashboardLayout>
     );
-  }
+  
 
   return null;
 }

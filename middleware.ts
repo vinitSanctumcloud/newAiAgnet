@@ -27,11 +27,11 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/ai-agent',
-    '/auth/login',
-    '/api/agent-step1',
-    '/api/agent-step2',
-    '/api/agent-step3',
+    // '/dashboard/:path*',
+    // '/ai-agent',
+    // '/auth/login',
+    // '/api/agent-step1',
+    // '/api/agent-step2',
+    // '/api/agent-step3',
   ],
 };

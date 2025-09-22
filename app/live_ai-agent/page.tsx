@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Send, Mic, ArrowLeft, Bot, RefreshCw, Minimize2, MessageSquare, Star, ChevronRight } from 'lucide-react';
-import { AgentInfo, Persona, Agent } from '@/app/lib/type';
+import { AgentInfo, Persona, Agent } from '@/lib/type';
 import Link from 'next/link';
 
 interface Message {

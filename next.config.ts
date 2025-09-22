@@ -7,12 +7,17 @@ const nextConfig: NextConfig = {
         protocol: 'http',
         hostname: 'localhost',
         port: '3000',
-        pathname: '/uploads/**',
+        pathname: '/Uploads/**',
       },
       {
         protocol: 'https',
         hostname: 'dcg000wo8wggwkskoks4g0s4.prod.sanctumcloud.com',
-        pathname: '/uploads/**', // Allow optimized access to images in production
+        pathname: '/Uploads/**', // Matches /Uploads and its subdirectories
+      },
+      {
+        protocol: 'https',
+        hostname: 'qkkso80gw8ss0kscc8c4skkg.prod.sanctumcloud.com',
+        pathname: '/Uploads/**', // Matches /Uploads and its subdirectories, including /Uploads/images/
       },
     ],
   },
