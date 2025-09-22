@@ -23,6 +23,14 @@ export interface Persona {
 }
 
 export interface Agent {
+  enableBranchingLogic: boolean;
+  enableFreeText: boolean;
+  languages: string;
+  conversationFlow: string;
+  customRules: string;
+  tone: string;
+  conversationStarters: string[];
+  greeting: string;
   // Adjust based on your actual Agent interface
   id: string;
   userId: string;
