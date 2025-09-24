@@ -1,827 +1,633 @@
 'use client';
-import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { Upload, FileText, Trash2, BookOpen, HelpCircle, Lightbulb, FileCheck, Plus, Edit, ChevronUp, ChevronDown, Search, AlertCircle, X } from 'lucide-react';
-import { AppDispatch, RootState } from '@/store';
-import { updateAgentStep3 } from '@/store/slice/agentSlice';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { Label } from '../ui/label';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Progress } from '../ui/progress';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
-import { Textarea } from '../ui/textarea';
-
-interface FAQItem {
-  _id?: string;
-  question: string;
-  answer: string;
-}
-
-interface IAIAgent {
-  _id: string;
-  docFiles?: (File | { name: string; size: number } | string)[];
-  manualEntry?: FAQItem[];
-}
-
-interface AgentState {
-  loading: boolean;
-  error: string | null;
-}
+import React, { useState, useCallback, useMemo } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Upload, Trash2, Plus, Edit, Search, AlertCircle, FileText, Download, FileSpreadsheet } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { IAIAgent, FAQItem } from '@/store/slice/agentSlice';
+import { cn } from '@/lib/utils';
 
 interface StepThreeProps {
-  agentInfo: IAIAgent;
-  onAgentChange: (agentInfo: IAIAgent) => void;
+  agent: IAIAgent;
+  onAgentChange: (agent: Partial<IAIAgent>) => void;
 }
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
-const MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50MB total
-
-function StepThree({ agentInfo, onAgentChange }: StepThreeProps) {
-  const dispatch = useDispatch<AppDispatch>();
-  const { loading, error } = useSelector((state: RootState) => state.agent as AgentState);
-  const [errors, setErrors] = useState<Partial<Record<keyof IAIAgent, string>>>({});
+export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
   const [openFAQDialog, setOpenFAQDialog] = useState(false);
   const [openAddEditDialog, setOpenAddEditDialog] = useState(false);
+  const [openBulkUploadDialog, setOpenBulkUploadDialog] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [newFAQ, setNewFAQ] = useState<FAQItem>({ question: '', answer: '' });
-  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const [errors, setErrors] = useState<{ manualEntry?: string; docFiles?: string; bulkUpload?: string }>({});
   const [dragOver, setDragOver] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [isAddingMultiple, setIsAddingMultiple] = useState(false); // Moved up
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const bulkFileInputRef = React.useRef<HTMLInputElement>(null);
 
   const filteredFAQs = useMemo(() => {
-    return (agentInfo.manualEntry || []).filter((faq: FAQItem) =>
-      faq.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      faq.answer.toLowerCase().includes(searchTerm.toLowerCase())
+    return (agent.manualEntry || []).filter(
+      (faq) =>
+        faq.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        faq.answer.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [agentInfo.manualEntry, searchTerm]);
+  }, [agent.manualEntry, searchTerm]);
 
-  const calculateTotalFileSize = useMemo(() => {
-    return () => {
-      if (!Array.isArray(agentInfo.docFiles)) return 0;
-      return agentInfo.docFiles.reduce((sum: number, file) => {
-        if (file instanceof File) return sum + file.size;
-        if (typeof file === 'object' && 'size' in file && typeof file.size === 'number') {
-          return sum + file.size;
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files || []);
+      const validFiles = files.filter((file) => {
+        if (file.size > 10 * 1024 * 1024) {
+          setErrors((prev) => ({ ...prev, docFiles: `File ${file.name} exceeds 10MB` }));
+          return false;
         }
-        return sum;
-      }, 0);
-    };
-  }, [agentInfo.docFiles]);
-
-  const getTotalFileSizeMB = useCallback(() => {
-    return (calculateTotalFileSize() / (1024 * 1024)).toFixed(1);
-  }, [calculateTotalFileSize]);
-
-  const getFileName = useCallback((file: File | { name: string; size: number } | string): string => {
-    if (typeof file === 'string') {
-      return file.split('/').pop() || 'Unknown File';
-    }
-    if (file && 'name' in file) {
-      return file.name;
-    }
-    return 'Unknown File';
-  }, []);
-
-  const validateFile = (file: File): string | null => {
-    if (file.size > MAX_FILE_SIZE) {
-      return `File "${file.name}" exceeds 10MB limit.`;
-    }
-    if (calculateTotalFileSize() + file.size > MAX_TOTAL_SIZE) {
-      return `Total file size exceeds 50MB limit.`;
-    }
-    return null;
-  };
-
-  const handleDocFilesChange = useCallback(
-    (files: File[]) => {
-      const validFiles: File[] = [];
-      const fileErrors: string[] = [];
-
-      files.forEach((file) => {
-        const error = validateFile(file);
-        if (error) {
-          fileErrors.push(error);
-        } else {
-          validFiles.push(file);
-        }
+        return true;
       });
 
-      if (fileErrors.length > 0) {
-        setUploadError(fileErrors.join(' '));
+      setUploadProgress(0);
+      const interval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            onAgentChange({ docFiles: [...(agent.docFiles || []), ...validFiles] });
+            setErrors((prev) => ({ ...prev, docFiles: undefined }));
+            return 100;
+          }
+          return prev + 10;
+        });
+      }, 100);
+    },
+    [agent.docFiles, onAgentChange]
+  );
+
+  const handleBulkFAQUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (!file.name.endsWith('.csv')) {
+        setErrors((prev) => ({ ...prev, bulkUpload: 'Please upload a CSV file' }));
         return;
       }
 
-      setUploadError(null);
-      const existingFiles = Array.isArray(agentInfo.docFiles) ? agentInfo.docFiles : [];
-      const newDocFiles = [...existingFiles, ...validFiles];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        try {
+          const rows = text.split('\n').map((row) => row.split(',').map((cell) => cell.trim()));
+          const newFAQs: FAQItem[] = rows.slice(1).filter(row => row.length >= 2).map((row) => ({
+            question: row[0],
+            answer: row[1]
+          })).filter(faq => faq.question && faq.answer);
 
-      const newAgentInfo: IAIAgent = {
-        ...agentInfo,
-        docFiles: newDocFiles,
+          if (newFAQs.length === 0) {
+            setErrors((prev) => ({ ...prev, bulkUpload: 'No valid FAQs found in CSV' }));
+            return;
+          }
+
+          onAgentChange({ manualEntry: [...(agent.manualEntry || []), ...newFAQs] });
+          setErrors((prev) => ({ ...prev, bulkUpload: undefined }));
+          setOpenBulkUploadDialog(false);
+        } catch (error) {
+          setErrors((prev) => ({ ...prev, bulkUpload: 'Error parsing CSV file' }));
+        }
       };
-
-      onAgentChange(newAgentInfo);
-      setErrors((prev) => ({ ...prev, docFiles: undefined }));
-
-      dispatch(
-        updateAgentStep3({
-          id: agentInfo._id,
-          data: { docFiles: newDocFiles.filter((f): f is File => f instanceof File) },
-        })
-      );
+      reader.readAsText(file);
     },
-    [agentInfo, onAgentChange, dispatch]
+    [agent.manualEntry, onAgentChange]
   );
 
-  const handleFileInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files || []);
-      handleDocFilesChange(files);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    },
-    [handleDocFilesChange]
-  );
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      setDragOver(false);
-      const files = Array.from(e.dataTransfer.files || []);
-      handleDocFilesChange(files);
-    },
-    [handleDocFilesChange]
-  );
-
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setDragOver(true);
-  }, []);
-
-  const handleDragLeave = useCallback(() => {
-    setDragOver(false);
+  const downloadFAQ = useCallback((faq: FAQItem) => {
+    const csvContent = `Question,Answer\n"${faq.question.replace(/"/g, '""')}","${faq.answer.replace(/"/g, '""')}"`;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `faq_${faq.question.slice(0, 20)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }, []);
 
   const removeFile = useCallback(
     (index: number) => {
-      const newFiles = [...(agentInfo.docFiles || [])];
+      const newFiles = [...(agent.docFiles || [])];
       newFiles.splice(index, 1);
-
-      const newAgentInfo: IAIAgent = {
-        ...agentInfo,
-        docFiles: newFiles,
-      };
-
-      onAgentChange(newAgentInfo);
-      dispatch(
-        updateAgentStep3({
-          id: agentInfo._id,
-          data: { docFiles: newFiles.filter((f): f is File => f instanceof File) },
-        })
-      );
+      onAgentChange({ docFiles: newFiles });
     },
-    [agentInfo, onAgentChange, dispatch]
+    [agent.docFiles, onAgentChange]
   );
 
-  const handleFAQChange = useCallback((field: 'question' | 'answer', value: string) => {
+  const handleFAQChange = (field: keyof FAQItem, value: string) => {
     setNewFAQ((prev) => ({ ...prev, [field]: value }));
-  }, []);
+  };
 
-  const validateFAQ = useCallback((): boolean => {
+  const validateFAQ = () => {
     if (!newFAQ.question.trim()) {
-      setErrors((prev) => ({ ...prev, manualEntry: 'Question is required.' }));
+      setErrors((prev) => ({ ...prev, manualEntry: 'Question is required' }));
       return false;
     }
     if (!newFAQ.answer.trim()) {
-      setErrors((prev) => ({ ...prev, manualEntry: 'Answer is required.' }));
-      return false;
-    }
-    if (newFAQ.answer.length < 50) {
-      setErrors((prev) => ({ ...prev, manualEntry: 'Answer should be at least 50 characters.' }));
+      setErrors((prev) => ({ ...prev, manualEntry: 'Answer is required' }));
       return false;
     }
     setErrors((prev) => ({ ...prev, manualEntry: undefined }));
     return true;
-  }, [newFAQ]);
+  };
 
-  const addFAQ = useCallback(() => {
+  const addOrUpdateFAQ = () => {
     if (!validateFAQ()) return;
-
-    const updatedFAQs = [...(agentInfo.manualEntry || [])];
+    const updatedFAQs = [...(agent.manualEntry || [])];
     if (editingIndex !== null) {
-      updatedFAQs[editingIndex] = { ...newFAQ, _id: updatedFAQs[editingIndex]?._id };
+      updatedFAQs[editingIndex] = newFAQ;
     } else {
       updatedFAQs.push(newFAQ);
     }
+    onAgentChange({ manualEntry: updatedFAQs });
+    setNewFAQ({ question: '', answer: '' }); // Reset form for next entry
+    setEditingIndex(null); // Clear editing mode
+    // Dialog remains open for adding more FAQs
+  };
 
-    const newAgentInfo: IAIAgent = {
-      ...agentInfo,
-      manualEntry: updatedFAQs,
-    };
+  const finishAddingFAQs = () => {
+    setOpenAddEditDialog(false);
+    setNewFAQ({ question: '', answer: '' });
+    setEditingIndex(null);
+    setErrors({});
+  };
 
-    onAgentChange(newAgentInfo);
-    dispatch(
-      updateAgentStep3({
-        id: agentInfo._id,
-        data: { manualEntry: updatedFAQs },
-      })
-    );
-
-    if (isAddingMultiple) {
-      setNewFAQ({ question: '', answer: '' });
-    } else {
-      setNewFAQ({ question: '', answer: '' });
-      setOpenAddEditDialog(false);
-    }
-  }, [agentInfo, newFAQ, editingIndex, isAddingMultiple, onAgentChange, dispatch, validateFAQ]);
-
-  const editFAQ = useCallback(
-    (index: number) => {
-      setEditingIndex(index);
-      setNewFAQ((agentInfo.manualEntry || [])[index] || { question: '', answer: '' });
-      setOpenAddEditDialog(true);
-      setIsAddingMultiple(false);
-    },
-    [agentInfo.manualEntry]
-  );
-
-  const removeFAQ = useCallback(
-    (index: number) => {
-      const newManualEntry = [...(agentInfo.manualEntry || [])];
-      newManualEntry.splice(index, 1);
-
-      const newAgentInfo: IAIAgent = {
-        ...agentInfo,
-        manualEntry: newManualEntry,
-      };
-
-      onAgentChange(newAgentInfo);
-      dispatch(
-        updateAgentStep3({
-          id: agentInfo._id,
-          data: { manualEntry: newManualEntry },
-        })
-      );
-
-      if (expandedRows.has(index)) {
-        const newExpanded = new Set(expandedRows);
-        newExpanded.delete(index);
-        setExpandedRows(newExpanded);
-      }
-    },
-    [agentInfo, onAgentChange, dispatch, expandedRows]
-  );
-
-  const toggleRowExpansion = useCallback((index: number) => {
-    setExpandedRows((prev) => {
-      const newExpanded = new Set(prev);
-      if (newExpanded.has(index)) {
-        newExpanded.delete(index);
-      } else {
-        newExpanded.add(index);
-      }
-      return newExpanded;
-    });
-  }, []);
-
-  const truncateText = useCallback((text: string, maxChars: number) => {
-    if (text.length <= maxChars) return text;
-    return text.slice(0, maxChars) + '...';
-  }, []);
-
-  const formatFileSize = useCallback((size: number): string => {
-    if (size < 1024) return `${size} B`;
-    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-  }, []);
-
-  const RequiredSymbol = () => <span className="text-red-500 ml-1">*</span>;
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
   return (
-    <div className="space-y-6 border border-gray-200 rounded-2xl p-6 bg-white dark:bg-gray-900">
-      {loading && <p className="text-gray-600 dark:text-gray-400 p-4">Loading agent data...</p>}
-      {(error || uploadError) && (
-        <p className="text-red-500 p-4 flex items-center gap-1">
-          <AlertCircle className="h-4 w-4" /> {error || uploadError}
-        </p>
-      )}
-      <div className="dark:from-gray-800 dark:to-gray-900 p-4 rounded-xl">
-        <div className="flex items-center gap-3 mb-2">
-          <BookOpen className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Knowledge Base Management</h1>
-        </div>
-        <p className="text-lg text-gray-600 dark:text-gray-400">
-          Enhance your AI agent intelligence by uploading detailed documents and curating comprehensive FAQs.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-0 overflow-hidden transition-all duration-300 bg-white dark:bg-gray-800">
-          <CardHeader className="p-5 bg-gray-100 dark:bg-gray-900">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-200 dark:bg-gray-700 rounded-lg">
-                  <Upload className="h-6 w-6 text-gray-700 dark:text-gray-300" />
-                </div>
-                <div>
-                  <CardTitle className="text-xl text-gray-900 dark:text-gray-100">Document Upload Center</CardTitle>
-                  <CardDescription className="text-gray-600 dark:text-gray-400 mt-1">
-                    {(agentInfo.docFiles || []).length} {(agentInfo.docFiles || []).length === 1 ? 'file' : 'files'} uploaded • {getTotalFileSizeMB()} MB used
-                  </CardDescription>
-                </div>
-              </div>
-              <Badge
-                variant="secondary"
-                className="bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-              >
-                {(agentInfo.docFiles || []).length}/50 files
+    <TooltipProvider>
+      <Card className="w-full bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 shadow-xl rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 p-4 sm:p-6">
+          {/* Documents Section */}
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <Label className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+                Documents
+                <span className="text-red-500 ml-1">*</span>
+              </Label>
+              <Badge variant="secondary" className="px-3 py-1 text-xs sm:text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                {agent.docFiles?.length || 0} files
               </Badge>
             </div>
-          </CardHeader>
+            
+            <div
+              className={cn(
+                "border-2 border-dashed rounded-xl p-4 sm:p-6 text-center transition-all duration-200 cursor-pointer",
+                dragOver 
+                  ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 scale-105' 
+                  : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+              )}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                handleFileChange({ target: { files: e.dataTransfer.files } } as any);
+              }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="mx-auto h-6 w-6 sm:h-8 sm:w-8 text-gray-400 mb-2 sm:mb-3" />
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Drag and drop files here or click to upload
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 sm:mb-3">
+                Supports PDF, DOC, DOCX (Max 10MB each)
+              </p>
+              <Button variant="outline" size="sm" className="rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50">
+                <Upload className="h-4 w-4 mr-2" />
+                Choose Files
+              </Button>
+              
+              <Input
+                type="file"
+                accept=".pdf,.doc,.docx"
+                multiple
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleFileChange} 
+              />
+            </div>
 
-          <CardContent className="p-5">
-            <div className="mb-4">
-              <Label
-                htmlFor="docFiles"
-                className="text-base font-medium text-gray-700 dark:text-gray-300 flex items-center mb-2"
-              >
-                Upload Supporting Documents <RequiredSymbol />
-              </Label>
+            {uploadProgress > 0 && uploadProgress < 100 && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                  <span>Uploading...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <Progress value={uploadProgress} className="h-2 bg-blue-100 dark:bg-blue-900/30" />
+              </div>
+            )}
 
-              {(agentInfo.docFiles || []).length > 0 && (
-                <div className="space-y-3 mb-4 max-h-48 overflow-y-auto pr-2">
-                  {(agentInfo.docFiles || []).map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200"
-                    >
-                      <div className="flex items-center flex-1 min-w-0">
-                        <FileText className="h-5 w-5 text-gray-500 dark:text-gray-400 mr-3 flex-shrink-0" />
-                        <div className="truncate">
-                          {typeof file === 'string' ? (
-                            <a
-                              href={file}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="font-medium text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                            >
-                              {getFileName(file)}
-                            </a>
-                          ) : (
-                            <span className="font-medium text-sm text-gray-800 dark:text-gray-200">
-                              {getFileName(file)}
-                            </span>
-                          )}
-                          {(file instanceof File || (typeof file === 'object' && 'size' in file)) && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                              ({formatFileSize('size' in file ? file.size : 0)})
-                            </span>
-                          )}
+            {errors.docFiles && (
+              <div className="flex items-center gap-2 text-red-500 text-xs sm:text-sm p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                <AlertCircle className="h-4 w-4" />
+                {errors.docFiles}
+              </div>
+            )}
+
+            {agent.docFiles && agent.docFiles.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">Uploaded Files</h4>
+                <div className="space-y-2 max-h-48 sm:max-h-60 overflow-y-auto pr-2">
+                  {agent.docFiles.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs sm:text-sm transition-all hover:bg-gray-100 dark:hover:bg-gray-600/50">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white truncate max-w-[150px] sm:max-w-[200px]">
+                            {typeof file === 'string' ? file.split('/').pop() : file.name}
+                          </p>
+                          <p className="text-gray-500 dark:text-gray-400">
+                            {typeof file !== 'string' && formatFileSize(file.size)}
+                          </p>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFile(index)}
-                        className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-500 transition-colors flex-shrink-0"
-                        aria-label={`Remove ${getFileName(file)}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => removeFile(index)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 p-1"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Remove file</TooltipContent>
+                      </Tooltip>
                     </div>
                   ))}
                 </div>
-              )}
-
-              <div
-                className={`relative flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-6 transition-all duration-300 min-h-[160px] ${
-                  dragOver
-                    ? 'border-gray-500 dark:border-gray-400 bg-gray-50 dark:bg-gray-700 scale-105'
-                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onClick={() => fileInputRef.current?.click()}
-                role="button"
-                aria-label="Upload files"
-              >
-                <Upload className="h-10 w-10 mb-3 text-gray-400 dark:text-gray-500 transition-colors duration-200" />
-                <span className="text-base font-medium text-gray-600 dark:text-gray-300 text-center">
-                  {(agentInfo.docFiles || []).length > 0 ? 'Click to Upload More' : 'Click to Upload'}
-                </span>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Supports all formats (PDF, DOCX, TXT, images, etc.)
-                </p>
               </div>
-              <Input
-                id="docFiles"
-                type="file"
-                multiple
-                accept="*/*"
-                className="hidden"
-                ref={fileInputRef}
-                onChange={handleFileInputChange}
-              />
-              {errors.docFiles && (
-                <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {errors.docFiles}
-                </p>
-              )}
-            </div>
+            )}
+          </div>
 
-            <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
-                <span>Storage Usage</span>
-                <span>{getTotalFileSizeMB()} MB / 50 MB</span>
-              </div>
-              <Progress
-                value={(calculateTotalFileSize() / MAX_TOTAL_SIZE) * 100}
-                className="h-2 bg-gray-200 dark:bg-gray-600"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                Max size: 10MB/file. Total limit: 50MB.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 overflow-hidden transition-all duration-300 dark:bg-gray-800">
-          <CardHeader className="p-5 bg-gray-100 dark:bg-gray-900">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-200 dark:bg-gray-700 rounded-lg">
-                  <HelpCircle className="h-6 w-6 text-gray-700 dark:text-gray-300" />
-                </div>
-                <div>
-                  <CardTitle className="text-xl text-gray-900 dark:text-gray-100">FAQ Management Hub</CardTitle>
-                  <CardDescription className="text-gray-600 dark:text-gray-400 mt-1">
-                    Curate detailed FAQs to provide quick, accurate answers
-                  </CardDescription>
-                </div>
-              </div>
-              <Badge
-                variant="secondary"
-                className="bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-              >
-                {(agentInfo.manualEntry || []).length} FAQs
+          {/* FAQs Section */}
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <Label className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+                Frequently Asked Questions
+                <span className="text-red-500 ml-1">*</span>
+              </Label>
+              <Badge variant="secondary" className="px-3 py-1 text-xs sm:text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                {agent.manualEntry?.length || 0} FAQs
               </Badge>
             </div>
-          </CardHeader>
 
-          <CardContent className="p-5 space-y-4">
-            <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg flex items-start gap-3">
-              <Lightbulb className="h-5 w-5 text-yellow-500 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                Well-crafted FAQs help your AI agent provide accurate and comprehensive answers to common questions.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                onClick={() => setOpenFAQDialog(true)}
-                className="flex items-center gap-3 h-auto py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 hover:shadow-md"
-              >
-                <FileCheck className="h-5 w-5" />
-                <div className="text-left">
-                  <div>View & Manage</div>
-                  <div className="text-xs font-normal opacity-90">All FAQs</div>
-                </div>
-              </Button>
-              <Button
-                onClick={() => {
-                  setEditingIndex(null);
-                  setNewFAQ({ question: '', answer: '' });
-                  setOpenAddEditDialog(true);
-                  setIsAddingMultiple(false);
-                }}
-                className="flex items-center gap-3 h-auto py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-all duration-200 hover:shadow-md"
-              >
-                <Plus className="h-5 w-5" />
-                <div className="text-left">
-                  <div>Create New</div>
-                  <div className="text-xs font-normal opacity-90">FAQ Entry</div>
-                </div>
-              </Button>
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Quick Stats</h3>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="text-center p-2 bg-white dark:bg-gray-600 rounded">
-                  <div className="font-bold text-blue-600 dark:text-blue-400">{(agentInfo.manualEntry || []).length}</div>
-                  <div className="text-gray-500 dark:text-gray-400">Total FAQs</div>
-                </div>
-                <div className="text-center p-2 bg-white dark:bg-gray-600 rounded">
-                  <div className="font-bold text-green-600 dark:text-green-400">
-                    {(agentInfo.manualEntry || []).filter((f: FAQItem) => f.answer.length > 100).length}
-                  </div>
-                  <div className="text-gray-500 dark:text-gray-400">Detailed Answers</div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Dialog open={openFAQDialog} onOpenChange={setOpenFAQDialog}>
-        <DialogContent className="sm:max-w-4xl bg-white dark:bg-gray-800 rounded-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
-          <DialogHeader className="border-b border-gray-200 dark:border-gray-700 p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-lg">
-                <BookOpen className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button 
+                  onClick={() => setOpenFAQDialog(true)}
+                  className="flex-1 h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                >
+                  <Search className="h-4 w-4 mr-2" />
                   Manage FAQs
-                </DialogTitle>
-                <CardDescription className="text-base text-gray-600 dark:text-gray-400 mt-1">
-                  {filteredFAQs.length} shown of {(agentInfo.manualEntry || []).length} total FAQs
-                </CardDescription>
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setEditingIndex(null);
+                    setNewFAQ({ question: '', answer: '' });
+                    setOpenAddEditDialog(true);
+                  }}
+                  className="h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add FAQ
+                </Button>
+              
               </div>
-            </div>
-          </DialogHeader>
 
-          <div className="p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <Input
-                placeholder="Search FAQs by question or answer..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-base"
-                aria-label="Search FAQs"
-              />
+              {agent.manualEntry && agent.manualEntry.length > 0 ? (
+                <div className="space-y-3 max-h-48 sm:max-h-60 overflow-y-auto pr-2">
+                  <h4 className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">Recent FAQs</h4>
+                  {agent.manualEntry.slice(0, 3).map((faq, index) => (
+                    <div key={index} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs sm:text-sm transition-all hover:bg-gray-100 dark:hover:bg-gray-600/50">
+                      <p className="font-medium text-gray-900 dark:text-white mb-1 line-clamp-1">
+                        {faq.question}
+                      </p>
+                      <p className="text-gray-600 dark:text-gray-400 line-clamp-2">
+                        {faq.answer}
+                      </p>
+                    </div>
+                  ))}
+                  {agent.manualEntry.length > 3 && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                      +{agent.manualEntry.length - 3} more FAQs
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center p-4 sm:p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl">
+                  <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                    No FAQs added yet. Click "Add FAQ" or "Bulk Upload" to get started.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto px-6">
-            {filteredFAQs.length > 0 ? (
-              <Table>
-                <TableHeader className="sticky top-0 bg-gray-50 dark:bg-gray-700 z-10">
-                  <TableRow>
-                    <TableHead className="w-2/3 text-gray-800 dark:text-gray-200 font-bold text-left">Question & Preview</TableHead>
-                    <TableHead className="text-gray-800 dark:text-gray-200 font-bold text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredFAQs.map((faq: FAQItem, index: number) => (
-                    <React.Fragment key={faq._id || index}>
-                      <TableRow className="hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-200 dark:border-gray-600 transition-colors duration-200">
-                        <TableCell className="py-4">
-                          <Collapsible
-                            open={expandedRows.has(index)}
-                            onOpenChange={() => toggleRowExpansion(index)}
-                            className="w-full"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <p className="font-semibold text-base text-gray-900 dark:text-gray-100">{faq.question}</p>
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                  {truncateText(faq.answer, 80)}
-                                </p>
+        </CardContent>
+
+        {/* FAQ Management Dialog */}
+        <Dialog open={openFAQDialog} onOpenChange={setOpenFAQDialog}>
+          <DialogContent className="max-w-md sm:max-w-3xl md:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col rounded-2xl bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">
+            <DialogHeader className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <DialogTitle className="text-lg sm:text-xl font-bold">Manage FAQs</DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">
+                Search, edit, download, or delete your frequently asked questions
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 flex-1 overflow-hidden flex flex-col p-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search FAQs by question or answer..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-12 rounded-xl border-2 border-gray-200 dark:border-gray-700"
+                />
+              </div>
+              
+              <div className="flex-1 overflow-auto rounded-xl border border-gray-200 dark:border-gray-700">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-gray-50 dark:bg-gray-800">
+                    <TableRow>
+                      <TableHead className="w-4/12 text-xs sm:text-sm">Question</TableHead>
+                      <TableHead className="w-6/12 text-xs sm:text-sm">Answer Preview</TableHead>
+                      <TableHead className="text-right text-xs sm:text-sm w-2/12">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredFAQs.length > 0 ? (
+                      filteredFAQs.map((faq, filteredIndex) => {
+                        const originalIndex = agent.manualEntry?.indexOf(faq) ?? -1;
+                        return (
+                          <TableRow key={filteredIndex} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 text-xs sm:text-sm">
+                            <TableCell className="font-medium line-clamp-2">{faq.question}</TableCell>
+                            <TableCell>
+                              <p className="text-gray-600 dark:text-gray-400 line-clamp-2">
+                                {faq.answer}
+                              </p>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex justify-end gap-1 sm:gap-2">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        if (originalIndex !== -1) {
+                                          setEditingIndex(originalIndex);
+                                          setNewFAQ(faq);
+                                          setOpenAddEditDialog(true);
+                                        }
+                                      }}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Edit FAQ</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => downloadFAQ(faq)}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <Download className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Download FAQ</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        if (originalIndex !== -1) {
+                                          const newFAQs = agent.manualEntry?.filter((_, i) => i !== originalIndex) || [];
+                                          onAgentChange({ manualEntry: newFAQs });
+                                        }
+                                      }}
+                                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Delete FAQ</TooltipContent>
+                                </Tooltip>
                               </div>
-                              <CollapsibleTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="ml-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                                  aria-label={expandedRows.has(index) ? 'Collapse FAQ' : 'Expand FAQ'}
-                                >
-                                  {expandedRows.has(index) ? (
-                                    <ChevronUp className="h-5 w-5" />
-                                  ) : (
-                                    <ChevronDown className="h-5 w-5" />
-                                  )}
-                                </Button>
-                              </CollapsibleTrigger>
-                            </div>
-                            <CollapsibleContent>
-                              <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-600 rounded-xl">
-                                <p className="text-base text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{faq.answer}</p>
-                              </div>
-                            </CollapsibleContent>
-                          </Collapsible>
-                        </TableCell>
-                        <TableCell className="py-4">
-                          <div className="flex justify-end space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => editFAQ(index)}
-                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 border-blue-300 dark:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900 transition-all duration-200"
-                              aria-label={`Edit FAQ: ${faq.question}`}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 border-red-300 dark:border-red-500 hover:bg-red-50 dark:hover:bg-red-900 transition-all duration-200"
-                                  aria-label={`Delete FAQ: ${faq.question}`}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent className="bg-white dark:bg-gray-800 rounded-2xl sm:max-w-md">
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">Confirm Deletion</AlertDialogTitle>
-                                  <AlertDialogDescription className="text-gray-600 dark:text-gray-400">
-                                    Are you sure you want to delete this FAQ? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => removeFAQ(index)}
-                                    className="bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
+                          {searchTerm ? 'No FAQs match your search' : 'No FAQs added yet'}
                         </TableCell>
                       </TableRow>
-                    </React.Fragment>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-center py-12 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-2xl bg-gray-50 dark:bg-gray-700">
-                <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-base font-medium text-gray-500 dark:text-gray-400">No FAQs match your search.</p>
-                <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">Try adjusting your search or add a new FAQ.</p>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
-            )}
-          </div>
-          <DialogFooter className="border-t border-gray-200 dark:border-gray-700 p-6">
-            <Button
-              variant="outline"
-              onClick={() => setOpenFAQDialog(false)}
-              className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              Close Manager
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </div>
+            
+            <DialogFooter className="mt-4 p-4 border-t border-gray-200 dark:border-gray-700">
+              <Button variant="outline" onClick={() => setOpenFAQDialog(false)} className="rounded-lg">
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      <Dialog open={openAddEditDialog} onOpenChange={setOpenAddEditDialog}>
-        <DialogContent className="sm:max-w-[700px] bg-white dark:bg-gray-800 rounded-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
-          <DialogHeader className="border-b border-gray-200 dark:border-gray-700 p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-lg">
-                {editingIndex !== null ? <Edit className="h-6 w-6 text-blue-600 dark:text-blue-400" /> : <Plus className="h-6 w-6 text-blue-600 dark:text-blue-400" />}
-              </div>
-              <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {editingIndex !== null ? 'Edit FAQ Entry' : 'Create New FAQ Entry'}
+        {/* Add/Edit FAQ Dialog */}
+        <Dialog open={openAddEditDialog} onOpenChange={setOpenAddEditDialog}>
+          <DialogContent className="max-w-md sm:max-w-lg md:max-w-2xl rounded-2xl bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">
+            <DialogHeader className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <DialogTitle className="text-lg sm:text-xl font-bold">
+                {editingIndex !== null ? 'Edit FAQ' : 'Add New FAQ'}
               </DialogTitle>
-            </div>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            <div>
-              <Label htmlFor="faqQuestion" className="text-base font-medium text-gray-700 dark:text-gray-300 flex items-center">
-                Question <RequiredSymbol />
-              </Label>
-              <Input
-                id="faqQuestion"
-                value={newFAQ.question}
-                onChange={(e) => handleFAQChange('question', e.target.value)}
-                placeholder="Enter a clear, concise question (e.g., What are the support services available?)"
-                className="border-gray-300 dark:border-gray-600 mt-2 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 rounded-xl text-base"
-                aria-invalid={!!errors.manualEntry}
-                aria-describedby="faqQuestionError"
-              />
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Keep questions user-friendly and specific for better AI matching.</p>
-              {errors.manualEntry && newFAQ.question.length === 0 && (
-                <p id="faqQuestionError" className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {errors.manualEntry}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="faqAnswer" className="text-base font-medium text-gray-700 dark:text-gray-300 flex items-center">
-                Detailed Answer <RequiredSymbol />
-              </Label>
-              <Textarea
-                id="faqAnswer"
-                value={newFAQ.answer}
-                onChange={(e) => handleFAQChange('answer', e.target.value)}
-                placeholder="Provide a comprehensive answer with key details, examples, and any relevant links or notes."
-                rows={8}
-                className="border-gray-300 dark:border-gray-600 mt-2 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 resize-vertical rounded-xl text-base"
-                aria-invalid={!!errors.manualEntry}
-                aria-describedby="faqAnswerError"
-              />
-              <div className="flex justify-between mt-1">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {newFAQ.answer.length} characters (recommended: 300-1000 for thorough responses)
-                </p>
-                {newFAQ.answer.length > 0 && (
-                  <Badge variant={newFAQ.answer.length >= 300 ? 'default' : 'secondary'} className="text-xs">
-                    {newFAQ.answer.length >= 300 ? 'Good length' : 'Too short'}
-                  </Badge>
-                )}
-              </div>
-              {errors.manualEntry && newFAQ.answer.length < 50 && (
-                <p id="faqAnswerError" className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {errors.manualEntry}
-                </p>
-              )}
-            </div>
-
-            {isAddingMultiple && (agentInfo.manualEntry || []).length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">
-                  Existing FAQs ({(agentInfo.manualEntry || []).length})
-                </h3>
-                <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
-                  <div className="max-h-60 overflow-y-auto">
-                    {(agentInfo.manualEntry || []).map((faq: FAQItem, index: number) => (
-                      <div
-                        key={faq._id || index}
-                        className="p-3 border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                      >
-                        <p className="font-medium text-gray-800 dark:text-gray-200">{faq.question}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">
-                          {truncateText(faq.answer, 100)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter className="border-t border-gray-200 dark:border-gray-700 p-6 flex flex-col sm:flex-row gap-3">
-            <div className="flex-1 flex gap-2">
-              {editingIndex === null && (
-                <Button
-                  onClick={() => setIsAddingMultiple(!isAddingMultiple)}
-                  variant="outline"
-                  className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
-                  aria-label={isAddingMultiple ? 'Switch to single entry mode' : 'Switch to multiple entry mode'}
-                >
-                  {isAddingMultiple ? (
-                    <>
-                      <X className="h-4 w-4" />
-                      Single Entry Mode
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4" />
-                      Add Multiple
-                    </>
+              <DialogDescription className="text-xs sm:text-sm">
+                {editingIndex !== null 
+                  ? 'Update the question and answer for this FAQ' 
+                  : 'Create new frequently asked questions one by one'}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 sm:space-y-6 p-4">
+              <div className="space-y-2 sm:space-y-3">
+                <Label htmlFor="question" className="text-sm font-medium">
+                  Question <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="question"
+                  value={newFAQ.question}
+                  onChange={(e) => handleFAQChange('question', e.target.value)}
+                  placeholder="Enter the question that users might ask..."
+                  className={cn(
+                    "h-12 rounded-xl border-2",
+                    errors.manualEntry && !newFAQ.question ? 'border-red-500 ring-4 ring-red-500/20' : 'border-gray-200 dark:border-gray-700'
                   )}
-                </Button>
+                />
+              </div>
+              
+              <div className="space-y-2 sm:space-y-3">
+                <Label htmlFor="answer" className="text-sm font-medium">
+                  Answer <span className="text-red-500">*</span>
+                </Label>
+                <Textarea
+                  id="answer"
+                  value={newFAQ.answer}
+                  onChange={(e) => handleFAQChange('answer', e.target.value)}
+                  placeholder="Provide a clear and concise answer..."
+                  rows={4}
+                  className={cn(
+                    "min-h-[120px] rounded-xl border-2",
+                    errors.manualEntry && !newFAQ.answer ? 'border-red-500 ring-4 ring-red-500/20' : 'border-gray-200 dark:border-gray-700'
+                  )}
+                />
+              </div>
+              
+              {errors.manualEntry && (
+                <div className="flex items-center gap-2 text-red-500 text-xs sm:text-sm p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                  <AlertCircle className="h-4 w-4" />
+                  {errors.manualEntry}
+                </div>
               )}
             </div>
-            <div className="flex gap-2">
+            
+            <DialogFooter className="p-4 border-t border-gray-200 dark:border-gray-700">
               <Button
                 variant="outline"
-                onClick={() => {
-                  setOpenAddEditDialog(false);
-                  setIsAddingMultiple(false);
-                  setErrors({});
-                }}
-                className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                onClick={finishAddingFAQs}
+                className="rounded-lg"
               >
                 Cancel
               </Button>
-              {isAddingMultiple && (
+              <Button
+                onClick={() => {
+                  addOrUpdateFAQ();
+                  // Show a success message or visual feedback
+                  // Dialog stays open for adding more FAQs
+                }}
+                className="bg-blue-600 hover:bg-blue-700 rounded-lg"
+              >
+                {editingIndex !== null ? 'Update FAQ' : 'Add FAQ and Continue'}
+              </Button>
+              {!editingIndex && (
                 <Button
-                  onClick={addFAQ}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 flex items-center gap-2"
+                  onClick={finishAddingFAQs}
+                  className="bg-green-600 hover:bg-green-700 rounded-lg"
                 >
-                  <Plus className="h-4 w-4" />
-                  Add Another
+                  Finish Adding FAQs
                 </Button>
               )}
-              <Button
-                onClick={isAddingMultiple ? () => { addFAQ(); setOpenAddEditDialog(false); setIsAddingMultiple(false); } : addFAQ}
-                className="bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-all duration-200"
-                disabled={loading}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bulk Upload Dialog */}
+        <Dialog open={openBulkUploadDialog} onOpenChange={setOpenBulkUploadDialog}>
+          <DialogContent className="max-w-md sm:max-w-lg rounded-2xl bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">
+            <DialogHeader className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <DialogTitle className="text-lg sm:text-xl font-bold">Bulk Upload FAQs</DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">
+                Upload a CSV file containing FAQs (format: Question,Answer)
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 p-4">
+              <div
+                className={cn(
+                  "border-2 border-dashed rounded-xl p-4 text-center transition-all duration-200 cursor-pointer",
+                  dragOver 
+                    ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 scale-105' 
+                    : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                )}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  handleBulkFAQUpload({ target: { files: e.dataTransfer.files } } as any);
+                }}
+                onClick={() => bulkFileInputRef.current?.click()}
               >
-                {editingIndex !== null ? 'Update Entry' : isAddingMultiple ? 'Add & Close' : 'Add Entry'}
-              </Button>
+                <FileSpreadsheet className="mx-auto h-6 w-6 text-gray-400 mb-2" />
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Drag and drop CSV file here or click to upload
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                  CSV format: Question,Answer (Max 10MB)
+                </p>
+                <Button variant="outline" size="sm" className="rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Choose CSV File
+                </Button>
+                
+                <Input
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  ref={bulkFileInputRef}
+                  onChange={handleBulkFAQUpload}
+                />
+              </div>
+
+              {errors.bulkUpload && (
+                <div className="flex items-center gap-2 text-red-500 text-xs sm:text-sm p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                  <AlertCircle className="h-4 w-4" />
+                  {errors.bulkUpload}
+                </div>
+              )}
             </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+            
+            <DialogFooter className="p-4 border-t border-gray-200 dark:border-gray-700">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setOpenBulkUploadDialog(false);
+                  setErrors((prev) => ({ ...prev, bulkUpload: undefined }));
+                }}
+                className="rounded-lg"
+              >
+                Cancel
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </Card>
+    </TooltipProvider>
   );
 }
-
-export default StepThree;

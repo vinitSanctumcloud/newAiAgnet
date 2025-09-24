@@ -1,9 +1,12 @@
-import React, { useState, ChangeEvent, useRef, useEffect } from 'react';
+'use client';
+import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Send, Mic, ArrowLeft, Bot, RefreshCw, Minimize2, MessageSquare, Star, ChevronRight } from 'lucide-react';
-import { AgentInfo, Persona } from '@/lib/type';
 import Image from 'next/image';
+import { IAIAgent } from '@/store/slice/agentSlice';
+import { cn } from '@/lib/utils';
 
 interface Message {
   id: string;
@@ -14,9 +17,13 @@ interface Message {
   suggestedReply?: string;
 }
 
-function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentInfo }) {
-  const [userInput, setUserInput] = useState('');
+interface StepFourProps {
+  agent: IAIAgent;
+}
+
+export default function StepFour({ agent }: StepFourProps) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [userInput, setUserInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isChatStarted, setIsChatStarted] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -52,35 +59,40 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
       }
     };
 
-    setPreview(agentInfo.logoFile, setLogoUrl);
+    setPreview(agent.logoFile ?? null, setLogoUrl);
 
     return () => {
       if (logoReader) logoReader.abort();
     };
-  }, [agentInfo.logoFile]);
+  }, [agent.logoFile]);
 
-  // Derive dynamic colors from agentInfo.colorTheme
-  const primaryColor = agentInfo.colorTheme || '#8B5CF6';
-  const primaryColorDark = agentInfo.colorTheme
-    ? `#${Math.floor(parseInt(agentInfo.colorTheme.slice(1), 16) * 0.7).toString(16).padStart(6, '0')}`
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isChatStarted, isTyping]);
+
+  // Derive dynamic colors from agent.colorTheme
+  const primaryColor = agent.colorTheme || '#8B5CF6';
+  const primaryColorDark = agent.colorTheme
+    ? `#${Math.floor(parseInt(agent.colorTheme.slice(1), 16) * 0.7).toString(16).padStart(6, '0')}`
     : '#6D28D9';
-  const primaryColorLight = agentInfo.colorTheme ? `${agentInfo.colorTheme}20` : '#8B5CF620';
-  const primaryBorder = agentInfo.colorTheme ? `${agentInfo.colorTheme}30` : '#8B5CF630';
-  const primaryColor300 = agentInfo.colorTheme ? `${agentInfo.colorTheme}80` : '#8B5CF680';
+  const primaryColorLight = agent.colorTheme ? `${agent.colorTheme}20` : '#8B5CF620';
+  const primaryBorder = agent.colorTheme ? `${agent.colorTheme}30` : '#8B5CF630';
+  const primaryColor300 = agent.colorTheme ? `${agent.colorTheme}80` : '#8B5CF680';
 
   // Get AI Agent name based on domain expertise
   const getAIAgentName = () => {
-    if (agentInfo.domainExpertise) {
-      return `${agentInfo.domainExpertise} Assistant`;
+    if (agent.domainExpertise) {
+      return `${agent.domainExpertise} Assistant`;
     }
-    return `${agentInfo.aiAgentName || 'AI Agent'} Assistant`;
+    return `${agent.aiAgentName || 'AI Agent'} Assistant`;
   };
 
   const findMatchingFAQ = (input: string) => {
     const lowerInput = input.toLowerCase();
     return (
-      agentInfo.manualEntry?.find((faq) => faq.question.toLowerCase().includes(lowerInput)) ||
-      agentInfo.manualEntry?.find((faq) => faq.answer.toLowerCase().includes(lowerInput))
+      agent.manualEntry?.find((faq) => faq.question.toLowerCase().includes(lowerInput)) ||
+      agent.manualEntry?.find((faq) => faq.answer.toLowerCase().includes(lowerInput))
     );
   };
 
@@ -88,12 +100,12 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
     const initialMessages: Message[] = [
       {
         id: '1',
-        text: persona.greeting || `Hi there! I'm ${getAIAgentName()}, here to help you learn more about our programs and services. How can I assist you today?`,
+        text: agent.greeting || `Hi there! I'm ${getAIAgentName()}, here to help you learn more about our programs and services. How can I assist you today?`,
         sender: 'bot',
         timestamp: new Date(),
         quickReplies:
-          persona.conversationStarters && persona.conversationStarters.length > 0
-            ? persona.conversationStarters.slice(0, 3)
+          agent.conversationStarters && agent.conversationStarters.length > 0
+            ? agent.conversationStarters.slice(0, 3)
             : ['Programs offered', 'Service details', 'Support options'],
       },
     ];
@@ -130,14 +142,6 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
         setIsTyping(false);
       }, 1000);
     }
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isChatStarted, isTyping]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const handleSend = (customInput?: string) => {
@@ -252,101 +256,96 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
   }
 
   return (
-    <div className="flex items-center justify-center h-full p-4">
-      {/* Main chat widget container */}
-      <div
-        className="w-full max-w-md bg-white rounded-2xl flex flex-col overflow-hidden relative h-[600px] shadow-xl"
-        style={{ border: `1px solid ${primaryBorder}` }}
+    <Card
+      className="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl flex flex-col overflow-hidden shadow-xl mx-auto h-[600px] sm:h-[650px]"
+      style={{ border: `1px solid ${primaryBorder}` }}
+    >
+      <CardHeader
+        className="p-4 text-white flex items-center justify-between relative z-10"
+        style={{
+          background: `linear-gradient(135deg, ${primaryColor}, ${primaryColorDark})`,
+          borderBottom: `1px solid ${primaryBorder}`,
+        }}
       >
-        {/* Fixed Header */}
-        <div
-          className="p-4 text-white flex items-center justify-between relative z-10"
-          style={{
-            background: `linear-gradient(135deg, ${primaryColor}, ${primaryColorDark})`,
-            position: 'sticky',
-            top: 0,
-            borderBottom: `1px solid ${primaryBorder}`,
-          }}
-        >
-          <div className="flex items-center gap-2">
-            {isChatStarted && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-8 h-8 p-0 rounded-full hover:bg-white/20 text-white"
-                onClick={handleBackButton}
-                title="Back to menu"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            )}
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden border-2 border-white/30">
-              <Image
-                src={logoUrl || '/default-logo.png'}
-                alt="Agent Logo"
-                width={40}
-                height={40}
-                className="w-10 h-10 object-cover"
-              />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold">{getAIAgentName()}</h2>
-              <p className="text-xs text-white/80">{agentInfo.aiAgentName || 'AI Agent Assistant'}</p>
-            </div>
+        <div className="flex items-center gap-2">
+          {isChatStarted && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-8 h-8 p-0 rounded-full hover:bg-white/20 text-white"
+              onClick={handleBackButton}
+              title="Back to menu"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          )}
+          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden border-2 border-white/30">
+            <Image
+              src={logoUrl || '/default-logo.png'}
+              alt="Agent Logo"
+              width={40}
+              height={40}
+              className="w-10 h-10 object-cover"
+            />
           </div>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-8 h-8 p-0 rounded-full hover:bg-white/20 text-white"
-              onClick={handleRefresh}
-              title="Refresh chat"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-8 h-8 p-0 rounded-full hover:bg-white/20 text-white"
-              onClick={handleMinimize}
-              title="Minimize widget"
-            >
-              <Minimize2 className="h-4 w-4" />
-            </Button>
+          <div>
+            <CardTitle className="text-lg font-semibold">{getAIAgentName()}</CardTitle>
+            <CardDescription className="text-xs text-white/80">{agent.aiAgentName || 'AI Agent Assistant'}</CardDescription>
           </div>
         </div>
 
+        {/* Action buttons */}
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-8 h-8 p-0 rounded-full hover:bg-white/20 text-white"
+            onClick={handleRefresh}
+            title="Refresh chat"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-8 h-8 p-0 rounded-full hover:bg-white/20 text-white"
+            onClick={handleMinimize}
+            title="Minimize widget"
+          >
+            <Minimize2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+
+      <div className="flex-1 flex flex-col overflow-hidden">
         {!isChatStarted ? (
           // Initial welcome screen
           <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={conversationScrollRef}>
             {/* Domain expertise section */}
-            {agentInfo.domainExpertise && (
+            {agent.domainExpertise && (
               <div
-                className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border shadow-sm"
+                className="bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm p-4 rounded-2xl border shadow-sm"
                 style={{ borderColor: primaryBorder }}
               >
                 <div className="flex items-center gap-2 mb-3">
                   <Star className="h-4 w-4" style={{ color: primaryColor }} />
-                  <h3 className="text-sm font-semibold text-gray-800">Specialized Knowledge</h3>
+                  <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Specialized Knowledge</h3>
                 </div>
-                <p className="text-xs text-gray-600">
-                  I specialize in {agentInfo.domainExpertise.toLowerCase()} and can provide detailed information about
-                  related services, features, and opportunities.
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  I specialize in {agent.domainExpertise.toLowerCase()} and can provide detailed information about related services, features, and opportunities.
                 </p>
               </div>
             )}
 
             {/* Conversation starters */}
             <div className="space-y-3">
-              <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" style={{ color: primaryColor }} />
                 Quick questions to get started:
               </h3>
               <div className="grid gap-3">
-                {persona.conversationStarters && persona.conversationStarters.length > 0 ? (
-                  persona.conversationStarters.slice(0, 4).map((starter: string, index: React.Key | null | undefined) => (
+                {agent.conversationStarters && agent.conversationStarters.length > 0 ? (
+                  agent.conversationStarters.slice(0, 4).map((starter: string, index: number) => (
                     <PromptCard key={index} text={starter} onClick={() => handleStarterClick(starter)} />
                   ))
                 ) : (
@@ -387,7 +386,7 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
                         borderColor: message.sender === 'user' ? 'transparent' : primaryBorder,
                       }}
                     >
-                      <p className={`break-words text-sm ${message.sender === 'user' ? 'text-white' : 'text-gray-700'}`}>
+                      <p className={`break-words text-sm ${message.sender === 'user' ? 'text-white' : 'text-gray-700 dark:text-gray-200'}`}>
                         {message.text.split('\n').map((line, index) => (
                           <span key={index}>
                             {line}
@@ -397,7 +396,7 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
                       </p>
                       <span
                         className={`text-xs mt-1 block text-right ${
-                          message.sender === 'user' ? 'text-white/80' : 'text-gray-500'
+                          message.sender === 'user' ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'
                         }`}
                       >
                         {formatTime(message.timestamp)}
@@ -480,14 +479,12 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
 
         {/* Fixed Input Area */}
         <div
-          className="p-4 bg-white/90 backdrop-blur-sm border-t shadow-lg z-10"
+          className="p-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-t shadow-lg z-10"
           style={{
             borderColor: primaryBorder,
-            position: 'sticky',
-            bottom: 0,
           }}
         >
-          <div className="bg-gray-50/50 rounded-2xl p-3 border border-gray-200/50 shadow-inner">
+          <div className="bg-gray-50/50 dark:bg-gray-700/50 rounded-2xl p-3 border border-gray-200/50 dark:border-gray-600/50 shadow-inner">
             <div className="flex items-center gap-2">
               {/* Message input */}
               <div className="flex-1 relative group">
@@ -513,7 +510,7 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
               <Button
                 variant="ghost"
                 size="sm"
-                className="p-3 rounded-xl transition-all hover:bg-gray-200/50 hover:scale-105"
+                className="p-3 rounded-xl transition-all hover:bg-gray-200/50 dark:hover:bg-gray-600/50 hover:scale-105"
                 style={{
                   color: primaryColor300,
                 }}
@@ -542,8 +539,6 @@ function StepFour({ persona, agentInfo }: { persona: Persona; agentInfo: AgentIn
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
-
-export default StepFour;

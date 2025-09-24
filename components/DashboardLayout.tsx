@@ -1,8 +1,10 @@
-"use client";
+// app/dashboard/layout.tsx
+'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { ReactNode, useState, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import {
   LayoutDashboard,
   User,
@@ -19,12 +21,21 @@ import {
   X,
   Bot,
 } from 'lucide-react';
-
-// Import Shadcn UI components
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { signOut } from 'next-auth/react';
+import { Button } from '@/components/ui/button';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { selectUser, logout } from '@/store/slice/authSlice';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -44,34 +55,52 @@ interface HeaderProps extends SidebarProps {
   toggleSidebar: () => void;
 }
 
-function Sidebar({ pathname, isSidebarOpen, setIsSidebarOpen, darkMode, toggleDarkMode, activeSubmenu, setActiveSubmenu }: SidebarProps) {
-  const [userData, setUserData] = useState({
-    name: "John Smith",
-    email: "john.smith@example.com",
-    avatar: "/avatars/john-smith.jpg"
-  });
-  const router = useRouter();
+function Sidebar({
+  pathname,
+  isSidebarOpen,
+  setIsSidebarOpen,
+  darkMode,
+  toggleDarkMode,
+  activeSubmenu,
+  setActiveSubmenu,
+}: SidebarProps) {
+  const dispatch = useDispatch();
+  const user = useSelector(selectUser);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const userData = user
+    ? {
+        name: user.name || 'User',
+        email: user.email,
+        avatar: '/avatars/default.jpg',
+      }
+    : {
+        name: 'Guest',
+        email: 'guest@example.com',
+        avatar: '/avatars/default.jpg',
+      };
 
   const toggleSubmenu = (menu: string) => {
     setActiveSubmenu(activeSubmenu === menu ? null : menu);
   };
 
   const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+
     try {
-      await signOut({ redirect: false });
-      setUserData({ name: '', email: '', avatar: '' });
-      localStorage.removeItem('auth-token');
-      router.push('/auth/login');
-      router.refresh();
+      dispatch(logout());
+      window.location.href = '/auth/login'; // Direct navigation to avoid router issues
     } catch (error) {
       console.error('Error logging out:', error);
       alert('An error occurred while logging out. Please try again.');
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
   return (
     <>
-      {/* Hamburger Menu Button for Small Screens */}
       <button
         className="lg:hidden fixed top-4 right-4 z-50 p-2 rounded-md bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow-md"
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -80,14 +109,14 @@ function Sidebar({ pathname, isSidebarOpen, setIsSidebarOpen, darkMode, toggleDa
         {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
-      {/* Sidebar */}
-      <div className={`
+      <div
+        className={`
         lg:w-64 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 flex flex-col shadow-lg
         fixed top-0 left-0 h-screen w-64 transform transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 lg:static z-40 border-r border-gray-200 dark:border-gray-700
-      `}>
-        {/* Sidebar Header */}
+      `}
+      >
         <div className="sticky top-0 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center bg-white dark:bg-gray-800">
           <div className="flex items-center">
             <div className="bg-blue-100 dark:bg-blue-900/40 p-1.5 rounded-lg mr-3">
@@ -98,63 +127,76 @@ function Sidebar({ pathname, isSidebarOpen, setIsSidebarOpen, darkMode, toggleDa
             </span>
           </div>
         </div>
-        {/* Navigation */}
         <nav className="flex-1 p-2 overflow-y-auto">
           <ul className="space-y-1">
             <li>
               <Link
-                href="/dashboard"
+                href="/dashboard1"
                 onClick={() => setIsSidebarOpen(false)}
-                className={`flex items-center p-2 rounded-lg transition-all duration-200 group ${pathname === '/dashboard'
-                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700/70'
-                  }`}
+                className={`flex items-center p-2 rounded-lg transition-all duration-200 group ${
+                  pathname === '/dashboard1'
+                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700/70'
+                }`}
               >
-                <div className={`p-1.5 rounded-md mr-2 ${pathname === '/dashboard'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-blue-100 group-hover:text-blue-600 dark:group-hover:bg-blue-900/40 dark:group-hover:text-blue-300'
-                  }`}>
+                <div
+                  className={`p-1.5 rounded-md mr-2 ${
+                    pathname === '/dashboard1'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-blue-100 group-hover:text-blue-600 dark:group-hover:bg-blue-900/40 dark:group-hover:text-blue-300'
+                  }`}
+                >
                   <Home size={18} />
                 </div>
                 <span>Home</span>
-                {pathname === '/dashboard' && <div className="ml-auto w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></div>}
+                {pathname === '/dashboard1' && (
+                  <div className="ml-auto w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></div>
+                )}
               </Link>
             </li>
             <li>
               <Link
                 href="/aiagent"
                 onClick={() => setIsSidebarOpen(false)}
-                className={`flex items-center p-2 rounded-lg transition-all duration-200 group ${pathname === '/aiagent'
-                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700/70'
-                  }`}
+                className={`flex items-center p-2 rounded-lg transition-all duration-200 group ${
+                  pathname === '/aiagent'
+                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700/70'
+                }`}
               >
-                <div className={`p-1.5 rounded-md mr-2 ${pathname === '/aiagent'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-blue-100 group-hover:text-blue-600 dark:group-hover:bg-blue-900/40 dark:group-hover:text-blue-300'
-                  }`}>
+                <div
+                  className={`p-1.5 rounded-md mr-2 ${
+                    pathname === '/aiagent'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-blue-100 group-hover:text-blue-600 dark:group-hover:bg-blue-900/40 dark:group-hover:text-blue-300'
+                  }`}
+                >
                   <User size={18} />
                 </div>
                 <span>AI Agent</span>
-                {pathname === '/aiagent' && <div className="ml-auto w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></div>}
+                {pathname === '/aiagent' && (
+                  <div className="ml-auto w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></div>
+                )}
               </Link>
             </li>
             <li>
               <Link
                 href="/live_ai-agent"
                 onClick={() => setIsSidebarOpen(false)}
-                className={`flex items-center p-2 rounded-lg transition-all duration-200 group ${pathname === '/live_ai-agent'
+                className={`flex items-center p-2 rounded-lg transition-all duration-200 group ${
+                  pathname === '/live_ai-agent'
                     ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700/70'
-                  }`}
+                }`}
               >
                 <div
-                  className={`p-1.5 rounded-md mr-2 ${pathname === '/live_ai-agent'
+                  className={`p-1.5 rounded-md mr-2 ${
+                    pathname === '/live_ai-agent'
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-blue-100 group-hover:text-blue-600 dark:group-hover:bg-blue-900/40 dark:group-hover:text-blue-300'
-                    }`}
+                  }`}
                 >
-                  <Bot size={18} /> {/* you can use Bot or Cpu icon from lucide-react */}
+                  <Bot size={18} />
                 </div>
                 <span>Live AI Agent Preview</span>
                 {pathname === '/live_ai-agent' && (
@@ -162,7 +204,6 @@ function Sidebar({ pathname, isSidebarOpen, setIsSidebarOpen, darkMode, toggleDa
                 )}
               </Link>
             </li>
-
             <li>
               <button
                 onClick={() => toggleSubmenu('reports')}
@@ -174,7 +215,10 @@ function Sidebar({ pathname, isSidebarOpen, setIsSidebarOpen, darkMode, toggleDa
                   </div>
                   <span>Reports</span>
                 </div>
-                <ChevronRight size={16} className={`transition-transform ${activeSubmenu === 'reports' ? 'rotate-90' : ''}`} />
+                <ChevronRight
+                  size={16}
+                  className={`transition-transform ${activeSubmenu === 'reports' ? 'rotate-90' : ''}`}
+                />
               </button>
               {activeSubmenu === 'reports' && (
                 <ul className="ml-4 mt-1 space-y-1 pl-6 border-l border-gray-200 dark:border-gray-700">
@@ -201,45 +245,56 @@ function Sidebar({ pathname, isSidebarOpen, setIsSidebarOpen, darkMode, toggleDa
             </li>
             <li>
               <Link
-                href="/dashboard/analytics"
+                href="/conversation-analytics"
                 onClick={() => setIsSidebarOpen(false)}
-                className={`flex items-center p-2 rounded-lg transition-all duration-200 group ${pathname === '/dashboard/analytics'
-                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700/70'
-                  }`}
+                className={`flex items-center p-2 rounded-lg transition-all duration-200 group ${
+                  pathname === '/conversation-analytics'
+                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700/70'
+                }`}
               >
-                <div className={`p-1.5 rounded-md mr-2 ${pathname === '/dashboard/analytics'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-blue-100 group-hover:text-blue-600 dark:group-hover:bg-blue-900/40 dark:group-hover:text-blue-300'
-                  }`}>
+                <div
+                  className={`p-1.5 rounded-md mr-2 ${
+                    pathname === '/conversation-analytics'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-blue-100 group-hover:text-blue-600 dark:group-hover:bg-blue-900/40 dark:group-hover:text-blue-300'
+                  }`}
+                >
                   <Activity size={18} />
                 </div>
                 <span>Analytics</span>
-                {pathname === '/dashboard/analytics' && <div className="ml-auto w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></div>}
+                {pathname === '/conversation-analytics' && (
+                  <div className="ml-auto w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></div>
+                )}
               </Link>
             </li>
             <li>
               <Link
                 href="/dashboard/support"
                 onClick={() => setIsSidebarOpen(false)}
-                className={`flex items-center p-2 rounded-lg transition-all duration-200 group ${pathname === '/dashboard/support'
-                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700/70'
-                  }`}
+                className={`flex items-center p-2 rounded-lg transition-all duration-200 group ${
+                  pathname === '/dashboard/support'
+                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700/70'
+                }`}
               >
-                <div className={`p-1.5 rounded-md mr-2 ${pathname === '/dashboard/support'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-blue-100 group-hover:text-blue-600 dark:group-hover:bg-blue-900/40 dark:group-hover:text-blue-300'
-                  }`}>
+                <div
+                  className={`p-1.5 rounded-md mr-2 ${
+                    pathname === '/dashboard/support'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-blue-100 group-hover:text-blue-600 dark:group-hover:bg-blue-900/40 dark:group-hover:text-blue-300'
+                  }`}
+                >
                   <HelpCircle size={18} />
                 </div>
                 <span>Support</span>
-                {pathname === '/dashboard/support' && <div className="ml-auto w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></div>}
+                {pathname === '/dashboard/support' && (
+                  <div className="ml-auto w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></div>
+                )}
               </Link>
             </li>
           </ul>
         </nav>
-        {/* Sidebar Footer */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
           <Button
             onClick={toggleDarkMode}
@@ -258,7 +313,7 @@ function Sidebar({ pathname, isSidebarOpen, setIsSidebarOpen, darkMode, toggleDa
                 <Avatar className="h-10 w-10 mr-3">
                   <AvatarImage src={userData.avatar} alt={userData.name} />
                   <AvatarFallback className="bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 text-sm">
-                    {userData.name.split(' ').map(n => n[0]).join('')}
+                    {userData.name.split(' ').map((n) => n[0]).join('')}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
@@ -290,7 +345,7 @@ function Sidebar({ pathname, isSidebarOpen, setIsSidebarOpen, darkMode, toggleDa
                 <span>Settings</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
+              <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
@@ -306,34 +361,20 @@ function Sidebar({ pathname, isSidebarOpen, setIsSidebarOpen, darkMode, toggleDa
   );
 }
 
-// Header Component
-function Header({  }: HeaderProps) {
+function Header({
+  toggleSidebar,
+  pathname,
+  isSidebarOpen,
+  setIsSidebarOpen,
+  darkMode,
+  toggleDarkMode,
+  activeSubmenu,
+  setActiveSubmenu,
+}: HeaderProps) {
   return (
     <header className="lg:hidden bg-white dark:bg-gray-800 shadow-sm z-10 border-b border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between py-4 px-4">
         <div className="flex items-center">
-          {/* <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="icon" className="mr-3">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-64">
-              <VisuallyHidden>
-                <SheetTitle>Navigation Menu</SheetTitle>
-                <SheetDescription>Access dashboard navigation options</SheetDescription>
-              </VisuallyHidden>
-              <Sidebar
-                pathname={pathname}
-                isSidebarOpen={true}
-                setIsSidebarOpen={toggleSidebar}
-                darkMode={darkMode}
-                toggleDarkMode={toggleDarkMode}
-                activeSubmenu={activeSubmenu}
-                setActiveSubmenu={setActiveSubmenu}
-              />
-            </SheetContent>
-          </Sheet> */}
           <div className="flex items-center">
             <div className="bg-blue-100 dark:bg-blue-900/40 p-1.5 rounded-lg">
               <LayoutDashboard size={28} className="text-blue-600 dark:text-blue-400" />
@@ -348,7 +389,6 @@ function Header({  }: HeaderProps) {
   );
 }
 
-// Main Layout Component
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -424,9 +464,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         />
 
         <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4 bg-white dark:bg-gray-900 hide-scrollbar">
-          <div className="max-w-full mx-auto">
-            {children}
-          </div>
+          <div className="max-w-full mx-auto">{children}</div>
         </div>
       </div>
     </div>
