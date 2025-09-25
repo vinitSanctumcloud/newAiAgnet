@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,8 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
   const [errors, setErrors] = useState<{ manualEntry?: string; docFiles?: string; bulkUpload?: string }>({});
   const [dragOver, setDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [intervalId, setIntervalId] = useState<NodeJS.Timeout | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const bulkFileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -51,21 +53,43 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
         return true;
       });
 
+      if (validFiles.length === 0) return;
+
+      setPendingFiles(validFiles);
+      setErrors((prev) => ({ ...prev, docFiles: undefined }));
       setUploadProgress(0);
-      const interval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            onAgentChange({ docFiles: [...(agent.docFiles || []), ...validFiles] });
-            setErrors((prev) => ({ ...prev, docFiles: undefined }));
-            return 100;
-          }
-          return prev + 10;
-        });
+
+      const id = setInterval(() => {
+        setUploadProgress((prev) => Math.min(prev + 10, 100));
       }, 100);
+      setIntervalId(id);
     },
-    [agent.docFiles, onAgentChange]
+    []
   );
+
+  // Clear interval on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [intervalId]);
+
+  // Clear interval when progress completes
+  useEffect(() => {
+    if (uploadProgress >= 100 && intervalId) {
+      clearInterval(intervalId);
+      setIntervalId(null);
+    }
+  }, [uploadProgress, intervalId]);
+
+  // Call onAgentChange after render when progress completes
+  useEffect(() => {
+    if (uploadProgress >= 100 && pendingFiles.length > 0) {
+      onAgentChange({ docFiles: [...(agent.docFiles || []), ...pendingFiles] });
+      setPendingFiles([]);
+      // Optionally reset progress here if you want to hide the bar immediately
+    }
+  }, [uploadProgress, pendingFiles, agent.docFiles, onAgentChange]);
 
   const handleBulkFAQUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -315,7 +339,7 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
                   <Plus className="h-4 w-4 mr-2" />
                   Add FAQ
                 </Button>
-              
+               
               </div>
 
               {agent.manualEntry && agent.manualEntry.length > 0 ? (

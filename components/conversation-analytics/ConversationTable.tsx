@@ -1,6 +1,7 @@
 // src/components/conversation-analytics/ConversationTable.tsx
 import React, { useState } from 'react';
 import { ArrowUpDown, Star, Eye, Flag, MoreHorizontal, Download, Archive, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 
 // Define interface for conversation data
 interface Conversation {
@@ -25,7 +26,20 @@ const ConversationTable: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isMobileView, setIsMobileView] = useState(false);
   const conversationsPerPage = 5;
+
+  // Check screen size on component mount and resize
+  React.useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobileView(window.innerWidth < 768);
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   const conversations: Conversation[] = [
     {
@@ -199,74 +213,180 @@ const ConversationTable: React.FC = () => {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1);
   };
 
+  // Mobile Card View
+  const MobileCardView = ({ conversation }: { conversation: Conversation }) => (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-3 shadow-sm">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center space-x-3">
+          <input
+            type="checkbox"
+            checked={selectedConversations.includes(conversation.id)}
+            onChange={() => handleSelectConversation(conversation.id)}
+            className="w-4 h-4 text-blue-500 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:ring-2 mt-1"
+          />
+          <img
+            src={conversation.avatar}
+            alt={conversation.user}
+            className="w-10 h-10 rounded-full object-cover"
+            loading="lazy"
+          />
+          <div>
+            <div className="font-semibold text-gray-900 dark:text-white">
+              {conversation.user}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              {conversation.messages} messages • {conversation.duration}
+            </div>
+          </div>
+        </div>
+        <button className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+          <MoreHorizontal size={16} />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">Agent</div>
+          <div className="text-sm font-medium text-gray-900 dark:text-white">
+            {conversation.agent}
+          </div>
+        </div>
+        <div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">Type</div>
+          <div className="text-sm font-medium text-gray-900 dark:text-white capitalize">
+            {conversation.type}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">Quality</div>
+          <div className="flex items-center space-x-2">
+            <span className={`text-sm font-medium ${getQualityScoreColor(conversation.qualityScore)}`}>
+              {conversation.qualityScore}%
+            </span>
+            <div className="flex">
+              {Array.from({ length: 5 }, (_, i) => (
+                <Star
+                  key={i}
+                  size={12}
+                  className={i < conversation.satisfaction ? 'text-yellow-500 fill-current' : 'text-gray-300 dark:text-gray-600'}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">Time</div>
+          <div className="text-sm font-medium text-gray-900 dark:text-white">
+            {conversation.timestamp.toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="flex space-x-2">
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSentimentColor(conversation.sentiment)}`}>
+            {conversation.sentiment}
+          </span>
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getOutcomeColor(conversation.outcome)}`}>
+            {conversation.outcome.replace('_', ' ')}
+          </span>
+        </div>
+        <div className="flex space-x-1">
+          <button className="p-1 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400">
+            <Eye size={14} />
+          </button>
+          <button className="p-1 text-gray-500 dark:text-gray-400 hover:text-yellow-500 dark:hover:text-yellow-400">
+            <Flag size={14} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 space-y-4 sm:space-y-0">
-          <div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-              Recent Conversations
-            </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Detailed conversation history with quality metrics
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-              aria-label="Filter by outcome"
-            >
-              <option value="all">All Outcomes</option>
-              <option value="resolved">Resolved</option>
-              <option value="escalated">Escalated</option>
-              <option value="follow_up">Follow-up</option>
-              <option value="qualified">Qualified</option>
-            </select>
-            <button
-              className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center space-x-2"
-              aria-label="Export conversations"
-            >
-              <Download size={16} />
-              <span>Export</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Bulk Actions */}
-        {selectedConversations.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg space-y-3 sm:space-y-0">
-            <span className="text-sm text-gray-900 dark:text-gray-100">
-              {selectedConversations.length} conversation{selectedConversations.length > 1 ? 's' : ''} selected
-            </span>
-            <div className="flex items-center space-x-2">
-              <button
-                className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center space-x-2"
-                aria-label="Flag selected conversations for review"
+      <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
+            <div>
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                Recent Conversations
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Detailed conversation history with quality metrics
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full sm:w-auto px-3 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                aria-label="Filter by outcome"
               >
-                <Flag size={16} />
-                <span>Flag for Review</span>
-              </button>
+                <option value="all">All Outcomes</option>
+                <option value="resolved">Resolved</option>
+                <option value="escalated">Escalated</option>
+                <option value="follow_up">Follow-up</option>
+                <option value="qualified">Qualified</option>
+              </select>
               <button
-                className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center space-x-2"
-                aria-label="Archive selected conversations"
+                className="w-full sm:w-auto px-3 py-2 text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center justify-center space-x-2"
+                aria-label="Export conversations"
               >
-                <Archive size={16} />
-                <span>Archive</span>
+                <Download size={16} />
+                <span>Export</span>
               </button>
             </div>
           </div>
-        )}
+
+          {/* Bulk Actions */}
+          {selectedConversations.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg space-y-3 sm:space-y-0">
+              <span className="text-sm text-gray-900 dark:text-gray-100">
+                {selectedConversations.length} conversation{selectedConversations.length > 1 ? 's' : ''} selected
+              </span>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
+                <button
+                  className="w-full sm:w-auto px-3 py-2 text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center justify-center space-x-2"
+                  aria-label="Flag selected conversations for review"
+                >
+                  <Flag size={16} />
+                  <span>Flag for Review</span>
+                </button>
+                <button
+                  className="w-full sm:w-auto px-3 py-2 text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center justify-center space-x-2"
+                  aria-label="Archive selected conversations"
+                >
+                  <Archive size={16} />
+                  <span>Archive</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1200px]">
-          <thead className="bg-gray-50 dark:bg-gray-700">
-            <tr>
-              <th className="w-12 p-4">
+      {/* Content */}
+      {isMobileView ? (
+        // Mobile Card View
+        <div className="p-3 sm:p-4">
+          {paginatedConversations.map((conversation) => (
+            <MobileCardView key={conversation.id} conversation={conversation} />
+          ))}
+        </div>
+      ) : (
+        // Desktop Table View
+        <Table className="min-w-[1000px] lg:min-w-0">
+          <TableHeader className="bg-gray-50 dark:bg-gray-700">
+            <TableRow>
+              <TableHead className="w-12 p-3 sm:p-4">
                 <input
                   type="checkbox"
                   checked={selectedConversations.length === filteredConversations.length}
@@ -274,58 +394,59 @@ const ConversationTable: React.FC = () => {
                   className="w-4 h-4 text-blue-500 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
                   aria-label="Select all conversations"
                 />
-              </th>
-              <th className="text-left p-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
+              </TableHead>
+              <TableHead className="p-3 sm:p-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
                 User
-              </th>
-              <th className="text-left p-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
+              </TableHead>
+              <TableHead className="p-3 sm:p-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
                 Agent
-              </th>
-              <th
-                className="text-left p-4 text-sm font-semibold text-gray-600 dark:text-gray-300 cursor-pointer hover:text-gray-900 dark:hover:text-white"
+              </TableHead>
+              <TableHead
+                className="p-3 sm:p-4 text-sm font-semibold text-gray-600 dark:text-gray-300 cursor-pointer hover:text-gray-900 dark:hover:text-white"
                 onClick={() => handleSort('duration')}
               >
                 <div className="flex items-center space-x-1">
                   <span>Duration</span>
                   <ArrowUpDown size={14} className={sortField === 'duration' ? 'text-blue-500' : ''} />
                 </div>
-              </th>
-              <th
-                className="text-left p-4 text-sm font-semibold text-gray-600 dark:text-gray-300 cursor-pointer hover:text-gray-900 dark:hover:text-white"
+              </TableHead>
+              <TableHead
+                className="p-3 sm:p-4 text-sm font-semibold text-gray-600 dark:text-gray-300 cursor-pointer hover:text-gray-900 dark:hover:text-white"
                 onClick={() => handleSort('qualityScore')}
               >
                 <div className="flex items-center space-x-1">
                   <span>Quality</span>
                   <ArrowUpDown size={14} className={sortField === 'qualityScore' ? 'text-blue-500' : ''} />
                 </div>
-              </th>
-              <th className="text-left p-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
+              </TableHead>
+              <TableHead className="p-3 sm:p-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
                 Sentiment
-              </th>
-              <th className="text-left p-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
+              </TableHead>
+              <TableHead className="p-3 sm:p-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
                 Outcome
-              </th>
-              <th
-                className="text-left p-4 text-sm font-semibold text-gray-600 dark:text-gray-300 cursor-pointer hover:text-gray-900 dark:hover:text-white"
+              </TableHead>
+              <TableHead
+                className="p-3 sm:p-4 text-sm font-semibold text-gray-600 dark:text-gray-300 cursor-pointer hover:text-gray-900 dark:hover:text-white"
                 onClick={() => handleSort('timestamp')}
               >
                 <div className="flex items-center space-x-1">
                   <span>Time</span>
                   <ArrowUpDown size={14} className={sortField === 'timestamp' ? 'text-blue-500' : ''} />
                 </div>
-              </th>
-              <th className="text-right p-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
+              </TableHead>
+              <TableHead className="p-3 sm:p-4 text-sm font-semibold text-gray-600 dark:text-gray-300 text-right">
                 Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {paginatedConversations.map((conversation) => (
-              <tr
+              <TableRow
                 key={conversation.id}
                 className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200"
+                data-state={selectedConversations.includes(conversation.id) ? 'selected' : undefined}
               >
-                <td className="p-4">
+                <TableCell className="p-3 sm:p-4">
                   <input
                     type="checkbox"
                     checked={selectedConversations.includes(conversation.id)}
@@ -333,8 +454,8 @@ const ConversationTable: React.FC = () => {
                     className="w-4 h-4 text-blue-500 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
                     aria-label={`Select conversation with ${conversation.user}`}
                   />
-                </td>
-                <td className="p-4">
+                </TableCell>
+                <TableCell className="p-3 sm:p-4">
                   <div className="flex items-center space-x-3">
                     <img
                       src={conversation.avatar}
@@ -351,21 +472,21 @@ const ConversationTable: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                </td>
-                <td className="p-4">
+                </TableCell>
+                <TableCell className="p-3 sm:p-4">
                   <div className="text-sm font-medium text-gray-900 dark:text-white">
                     {conversation.agent}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                     {conversation.type}
                   </div>
-                </td>
-                <td className="p-4">
+                </TableCell>
+                <TableCell className="p-3 sm:p-4">
                   <div className="text-sm font-medium text-gray-900 dark:text-white">
                     {conversation.duration}
                   </div>
-                </td>
-                <td className="p-4">
+                </TableCell>
+                <TableCell className="p-3 sm:p-4">
                   <div className="flex items-center space-x-2">
                     <span className={`text-sm font-medium ${getQualityScoreColor(conversation.qualityScore)}`}>
                       {conversation.qualityScore}%
@@ -380,18 +501,18 @@ const ConversationTable: React.FC = () => {
                       ))}
                     </div>
                   </div>
-                </td>
-                <td className="p-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getSentimentColor(conversation.sentiment)}`}>
+                </TableCell>
+                <TableCell className="p-3 sm:p-4">
+                  <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium ${getSentimentColor(conversation.sentiment)}`}>
                     {conversation.sentiment}
                   </span>
-                </td>
-                <td className="p-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getOutcomeColor(conversation.outcome)}`}>
+                </TableCell>
+                <TableCell className="p-3 sm:p-4">
+                  <span className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-medium ${getOutcomeColor(conversation.outcome)}`}>
                     {conversation.outcome.replace('_', ' ')}
                   </span>
-                </td>
-                <td className="p-4">
+                </TableCell>
+                <TableCell className="p-3 sm:p-4">
                   <div className="text-sm font-medium text-gray-900 dark:text-white">
                     {conversation.timestamp.toLocaleTimeString([], {
                       hour: '2-digit',
@@ -401,8 +522,8 @@ const ConversationTable: React.FC = () => {
                   <div className="text-xs text-gray-500 dark:text-gray-400">
                     {conversation.timestamp.toLocaleDateString()}
                   </div>
-                </td>
-                <td className="p-4">
+                </TableCell>
+                <TableCell className="p-3 sm:p-4">
                   <div className="flex items-center justify-end space-x-2">
                     <button
                       className="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors"
@@ -423,12 +544,12 @@ const ConversationTable: React.FC = () => {
                       <MoreHorizontal size={16} />
                     </button>
                   </div>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      )}
 
       {/* Pagination */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700">
@@ -440,7 +561,7 @@ const ConversationTable: React.FC = () => {
             <button
               onClick={handlePreviousPage}
               disabled={currentPage === 1}
-              className={`px-4 py-2 text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center space-x-2 transition-colors ${
+              className={`px-3 py-2 text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center space-x-2 transition-colors ${
                 currentPage === 1
                   ? 'opacity-50 cursor-not-allowed'
                   : 'hover:bg-gray-100 dark:hover:bg-gray-600'
@@ -448,19 +569,22 @@ const ConversationTable: React.FC = () => {
               aria-label="Previous page"
             >
               <ChevronLeft size={16} />
-              <span>Previous</span>
+              <span className="hidden sm:inline">Previous</span>
             </button>
+            <div className="text-sm text-gray-500 dark:text-gray-400 px-3 py-2">
+              Page {currentPage} of {totalPages}
+            </div>
             <button
               onClick={handleNextPage}
               disabled={currentPage === totalPages}
-              className={`px-4 py-2 text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center space-x-2 transition-colors ${
+              className={`px-3 py-2 text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center space-x-2 transition-colors ${
                 currentPage === totalPages
                   ? 'opacity-50 cursor-not-allowed'
                   : 'hover:bg-gray-100 dark:hover:bg-gray-600'
               }`}
               aria-label="Next page"
             >
-              <span>Next</span>
+              <span className="hidden sm:inline">Next</span>
               <ChevronRight size={16} />
             </button>
           </div>

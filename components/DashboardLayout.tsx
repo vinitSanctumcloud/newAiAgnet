@@ -270,25 +270,25 @@ function Sidebar({
             </li>
             <li>
               <Link
-                href="/dashboard/support"
+                href="/settings"
                 onClick={() => setIsSidebarOpen(false)}
                 className={`flex items-center p-2 rounded-lg transition-all duration-200 group ${
-                  pathname === '/dashboard/support'
+                  pathname === '/settings'
                     ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700/70'
                 }`}
               >
                 <div
                   className={`p-1.5 rounded-md mr-2 ${
-                    pathname === '/dashboard/support'
+                    pathname === '/settings'
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-blue-100 group-hover:text-blue-600 dark:group-hover:bg-blue-900/40 dark:group-hover:text-blue-300'
                   }`}
                 >
                   <HelpCircle size={18} />
                 </div>
-                <span>Support</span>
-                {pathname === '/dashboard/support' && (
+                <span>Settings</span>
+                {pathname === '/settings' && (
                   <div className="ml-auto w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></div>
                 )}
               </Link>

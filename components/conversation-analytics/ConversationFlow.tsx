@@ -1,5 +1,5 @@
 // src/components/conversation-analytics/ConversationFlow.tsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Users,
   Target,
@@ -20,6 +20,10 @@ import {
   AlertTriangle,
   ThumbsUp,
   Calendar,
+  Search,
+  Filter,
+  Download,
+  MoreVertical,
 } from 'lucide-react';
 
 type FlowKey = 'support' | 'sales' | 'onboarding';
@@ -35,6 +39,7 @@ type NodeType = {
   trend: 'up' | 'down' | 'stable';
   improvement: number;
   issues?: string[];
+  priority?: 'high' | 'medium' | 'low';
 };
 
 type ConnectionType = {
@@ -43,6 +48,7 @@ type ConnectionType = {
   percentage: number;
   dropoffReason?: string;
   avgTransitionTime: string;
+  strength?: 'strong' | 'medium' | 'weak';
 };
 
 type FlowDataType = {
@@ -61,12 +67,15 @@ type FlowDataType = {
       month: number;
       quarter: number;
     };
+    health: 'excellent' | 'good' | 'fair' | 'poor';
   };
 };
 
 const ConversationFlow = () => {
   const [selectedFlow, setSelectedFlow] = useState<FlowKey>('support');
   const [expandedNode, setExpandedNode] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   const flowData: FlowDataType = {
     support: {
@@ -76,6 +85,7 @@ const ConversationFlow = () => {
       totalSessions: 8247,
       completionRate: 71.8,
       avgDuration: '8m 24s',
+      health: 'good',
       performance: {
         week: 12.4,
         month: 8.7,
@@ -92,6 +102,7 @@ const ConversationFlow = () => {
           satisfaction: 4.8,
           trend: 'up',
           improvement: 5.2,
+          priority: 'low'
         },
         {
           id: 'greeting',
@@ -103,6 +114,7 @@ const ConversationFlow = () => {
           satisfaction: 4.6,
           trend: 'stable',
           improvement: 2.1,
+          priority: 'low'
         },
         {
           id: 'issue_identification',
@@ -115,6 +127,7 @@ const ConversationFlow = () => {
           trend: 'up',
           improvement: 8.7,
           issues: ['Vague descriptions', 'Multiple issues'],
+          priority: 'medium'
         },
         {
           id: 'solution_provided',
@@ -126,6 +139,7 @@ const ConversationFlow = () => {
           satisfaction: 4.4,
           trend: 'up',
           improvement: 12.3,
+          priority: 'medium'
         },
         {
           id: 'resolution',
@@ -137,6 +151,7 @@ const ConversationFlow = () => {
           satisfaction: 4.7,
           trend: 'up',
           improvement: 6.5,
+          priority: 'low'
         },
         {
           id: 'escalation',
@@ -149,6 +164,7 @@ const ConversationFlow = () => {
           trend: 'down',
           improvement: -3.2,
           issues: ['Complex cases', 'Technical limitations'],
+          priority: 'high'
         },
         {
           id: 'abandoned',
@@ -161,15 +177,16 @@ const ConversationFlow = () => {
           trend: 'down',
           improvement: -8.9,
           issues: ['Long wait times', 'Complex process'],
+          priority: 'high'
         },
       ],
       connections: [
-        { from: 'start', to: 'greeting', percentage: 98.2, avgTransitionTime: '15s' },
-        { from: 'greeting', to: 'issue_identification', percentage: 96.7, avgTransitionTime: '30s' },
-        { from: 'issue_identification', to: 'solution_provided', percentage: 88.0, avgTransitionTime: '45s' },
-        { from: 'solution_provided', to: 'resolution', percentage: 85.9, avgTransitionTime: '1m' },
-        { from: 'solution_provided', to: 'escalation', percentage: 14.1, avgTransitionTime: '2m', dropoffReason: 'Complex issue' },
-        { from: 'issue_identification', to: 'abandoned', percentage: 12.0, avgTransitionTime: '45s', dropoffReason: 'Process too long' },
+        { from: 'start', to: 'greeting', percentage: 98.2, avgTransitionTime: '15s', strength: 'strong' },
+        { from: 'greeting', to: 'issue_identification', percentage: 96.7, avgTransitionTime: '30s', strength: 'strong' },
+        { from: 'issue_identification', to: 'solution_provided', percentage: 88.0, avgTransitionTime: '45s', strength: 'medium' },
+        { from: 'solution_provided', to: 'resolution', percentage: 85.9, avgTransitionTime: '1m', strength: 'strong' },
+        { from: 'solution_provided', to: 'escalation', percentage: 14.1, avgTransitionTime: '2m', dropoffReason: 'Complex issue', strength: 'weak' },
+        { from: 'issue_identification', to: 'abandoned', percentage: 12.0, avgTransitionTime: '45s', dropoffReason: 'Process too long', strength: 'weak' },
       ],
       insights: [
         '98.2% of users complete the initial greeting successfully',
@@ -184,6 +201,7 @@ const ConversationFlow = () => {
       totalSessions: 3421,
       completionRate: 13.3,
       avgDuration: '12m 18s',
+      health: 'fair',
       performance: {
         week: 8.3,
         month: 15.7,
@@ -200,6 +218,7 @@ const ConversationFlow = () => {
           satisfaction: 4.5,
           trend: 'up',
           improvement: 12.8,
+          priority: 'low'
         },
         {
           id: 'qualification',
@@ -211,6 +230,7 @@ const ConversationFlow = () => {
           satisfaction: 4.2,
           trend: 'up',
           improvement: 18.3,
+          priority: 'medium'
         },
         {
           id: 'demo_request',
@@ -222,6 +242,7 @@ const ConversationFlow = () => {
           satisfaction: 4.6,
           trend: 'up',
           improvement: 25.1,
+          priority: 'medium'
         },
         {
           id: 'pricing_discussion',
@@ -233,6 +254,7 @@ const ConversationFlow = () => {
           satisfaction: 3.9,
           trend: 'stable',
           improvement: 3.2,
+          priority: 'high'
         },
         {
           id: 'conversion',
@@ -244,6 +266,7 @@ const ConversationFlow = () => {
           satisfaction: 4.8,
           trend: 'up',
           improvement: 32.7,
+          priority: 'low'
         },
         {
           id: 'follow_up',
@@ -255,6 +278,7 @@ const ConversationFlow = () => {
           satisfaction: 4.1,
           trend: 'up',
           improvement: 15.6,
+          priority: 'medium'
         },
         {
           id: 'not_interested',
@@ -266,6 +290,7 @@ const ConversationFlow = () => {
           satisfaction: 3.2,
           trend: 'down',
           improvement: -12.4,
+          priority: 'high'
         },
       ],
       insights: [
@@ -281,6 +306,7 @@ const ConversationFlow = () => {
       totalSessions: 15678,
       completionRate: 68.9,
       avgDuration: '6m 45s',
+      health: 'excellent',
       performance: {
         week: 18.2,
         month: 22.7,
@@ -297,6 +323,7 @@ const ConversationFlow = () => {
           satisfaction: 4.7,
           trend: 'up',
           improvement: 15.3,
+          priority: 'low'
         },
         {
           id: 'welcome',
@@ -308,6 +335,7 @@ const ConversationFlow = () => {
           satisfaction: 4.4,
           trend: 'up',
           improvement: 22.8,
+          priority: 'low'
         },
         {
           id: 'feature1',
@@ -319,6 +347,7 @@ const ConversationFlow = () => {
           satisfaction: 4.5,
           trend: 'up',
           improvement: 18.7,
+          priority: 'medium'
         },
         {
           id: 'feature2',
@@ -330,6 +359,7 @@ const ConversationFlow = () => {
           satisfaction: 4.2,
           trend: 'stable',
           improvement: 8.3,
+          priority: 'high'
         },
         {
           id: 'completion',
@@ -341,6 +371,7 @@ const ConversationFlow = () => {
           satisfaction: 4.8,
           trend: 'up',
           improvement: 27.4,
+          priority: 'low'
         },
       ],
       insights: [
@@ -350,6 +381,13 @@ const ConversationFlow = () => {
       ],
     },
   };
+
+  const filteredNodes = useMemo(() => {
+    if (!searchTerm) return flowData[selectedFlow].nodes;
+    return flowData[selectedFlow].nodes.filter(node =>
+      node.label.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [searchTerm, selectedFlow, flowData]);
 
   const getNodeColor = (type: string) => {
     switch (type) {
@@ -377,59 +415,104 @@ const ConversationFlow = () => {
     }
   };
 
+  const getHealthColor = (health: string) => {
+    switch (health) {
+      case 'excellent': return 'text-green-500 bg-green-500/20';
+      case 'good': return 'text-blue-500 bg-blue-500/20';
+      case 'fair': return 'text-yellow-500 bg-yellow-500/20';
+      case 'poor': return 'text-red-500 bg-red-500/20';
+      default: return 'text-gray-500 bg-gray-500/20';
+    }
+  };
+
+  const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+      case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+      case 'low': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300';
+    }
+  };
+
   const currentFlow = flowData[selectedFlow];
 
   return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-xl transition-all duration-300 hover:shadow-2xl">
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 md:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl">
       {/* Header Section */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-8">
-        <div className="mb-4 lg:mb-0">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-6 md:mb-8 gap-4">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-3 mb-2">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
               {currentFlow.icon}
             </div>
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {currentFlow.title}
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="min-w-0">
+              <div className="flex items-center space-x-3">
+                <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white truncate">
+                  {currentFlow.title}
+                </h3>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getHealthColor(currentFlow.health)}`}>
+                  {currentFlow.health}
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
                 {currentFlow.description}
               </p>
             </div>
           </div>
         </div>
         
-        <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
-          {(['support', 'sales', 'onboarding'] as FlowKey[]).map((flow) => (
-            <button
-              key={flow}
-              onClick={() => setSelectedFlow(flow)}
-              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 flex items-center space-x-2 ${
-                selectedFlow === flow
-                  ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
-            >
-              <span>{flow.charAt(0).toUpperCase() + flow.slice(1)}</span>
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+          <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl order-2 lg:order-1">
+            {(['support', 'sales', 'onboarding'] as FlowKey[]).map((flow) => (
+              <button
+                key={flow}
+                onClick={() => setSelectedFlow(flow)}
+                className={`px-3 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all duration-200 flex items-center space-x-2 min-w-[80px] justify-center ${
+                  selectedFlow === flow
+                    ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <span className="truncate">{flow.charAt(0).toUpperCase() + flow.slice(1)}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center space-x-2 order-1 lg:order-2 ml-auto">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search nodes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <button className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+              <Filter className="w-4 h-4" />
             </button>
-          ))}
+            <button className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
+              <Download className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Performance Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2  gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-4 rounded-xl border border-blue-200 dark:border-blue-800">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Total Sessions</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-xs md:text-sm font-medium text-blue-600 dark:text-blue-400">Total Sessions</p>
+              <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">
                 {currentFlow.totalSessions.toLocaleString()}
               </p>
             </div>
-            <Users className="w-8 h-8 text-blue-500 dark:text-blue-400" />
+            <Users className="w-6 h-6 md:w-8 md:h-8 text-blue-500 dark:text-blue-400" />
           </div>
           <div className="flex items-center space-x-1 mt-2">
-            <TrendingUp size={14} className="text-green-500" />
+            <TrendingUp size={12} className="text-green-500" />
             <span className="text-xs text-green-600 dark:text-green-400">
               +{currentFlow.performance.week}% this week
             </span>
@@ -439,12 +522,12 @@ const ConversationFlow = () => {
         <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-4 rounded-xl border border-green-200 dark:border-green-800">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-green-600 dark:text-green-400">Completion Rate</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-xs md:text-sm font-medium text-green-600 dark:text-green-400">Completion Rate</p>
+              <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">
                 {currentFlow.completionRate}%
               </p>
             </div>
-            <Target className="w-8 h-8 text-green-500 dark:text-green-400" />
+            <Target className="w-6 h-6 md:w-8 md:h-8 text-green-500 dark:text-green-400" />
           </div>
           <div className="flex items-center space-x-1 mt-2">
             {getTrendIcon('up')}
@@ -457,15 +540,15 @@ const ConversationFlow = () => {
         <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Avg Duration</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-xs md:text-sm font-medium text-purple-600 dark:text-purple-400">Avg Duration</p>
+              <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">
                 {currentFlow.avgDuration}
               </p>
             </div>
-            <Clock className="w-8 h-8 text-purple-500 dark:text-purple-400" />
+            <Clock className="w-6 h-6 md:w-8 md:h-8 text-purple-500 dark:text-purple-400" />
           </div>
           <div className="flex items-center space-x-1 mt-2">
-            <Zap size={14} className="text-blue-500" />
+            <Zap size={12} className="text-blue-500" />
             <span className="text-xs text-blue-600 dark:text-blue-400">-15% faster</span>
           </div>
         </div>
@@ -473,51 +556,58 @@ const ConversationFlow = () => {
         <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 p-4 rounded-xl border border-orange-200 dark:border-orange-800">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-orange-600 dark:text-orange-400">Quarter Growth</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-xs md:text-sm font-medium text-orange-600 dark:text-orange-400">Quarter Growth</p>
+              <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">
                 +{currentFlow.performance.quarter}%
               </p>
             </div>
-            <Sparkles className="w-8 h-8 text-orange-500 dark:text-orange-400" />
+            <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-orange-500 dark:text-orange-400" />
           </div>
           <div className="flex items-center space-x-1 mt-2">
-            <Calendar size={14} className="text-orange-500" />
+            <Calendar size={12} className="text-orange-500" />
             <span className="text-xs text-orange-600 dark:text-orange-400">Q3 Performance</span>
           </div>
         </div>
       </div>
 
       {/* Flow Visualization */}
-      <div className="relative mb-8">
-        <div className="space-y-6">
-          {currentFlow.nodes.map((node, index) => (
+      <div className="relative mb-6 md:mb-8">
+        <div className="space-y-4 md:space-y-6">
+          {filteredNodes.map((node, index) => (
             <div key={node.id} className="relative">
               {/* Connection Line */}
-              {index < currentFlow.nodes.length - 1 && node.type !== 'exit' && (
-                <div className="absolute left-1/2 top-full w-0.5 h-6 bg-gradient-to-b from-blue-300 to-blue-200 dark:from-blue-600 dark:to-blue-700 transform -translate-x-0.5 z-0" />
+              {index < filteredNodes.length - 1 && node.type !== 'exit' && (
+                <div className="absolute left-4 md:left-1/2 top-full w-0.5 h-4 md:h-6 bg-gradient-to-b from-blue-300 to-blue-200 dark:from-blue-600 dark:to-blue-700 transform md:-translate-x-0.5 z-0" />
               )}
 
               {/* Node Card */}
               <div className="flex items-center justify-center">
                 <div
                   className={`
-                    relative w-full max-w-2xl flex flex-col lg:flex-row items-center justify-between p-6 rounded-2xl border-2 shadow-lg transition-all duration-300 cursor-pointer
+                    relative w-full flex flex-col lg:flex-row items-start lg:items-center justify-between p-4 md:p-6 rounded-xl md:rounded-2xl border-2 shadow-lg transition-all duration-300 cursor-pointer
                     ${getNodeColor(node.type)}
                     ${expandedNode === node.id ? 'scale-105 shadow-2xl' : 'hover:scale-102'}
                   `}
                   onClick={() => setExpandedNode(expandedNode === node.id ? null : node.id)}
                 >
-                  <div className="flex items-center space-x-4 mb-4 lg:mb-0">
-                    <div className="flex-shrink-0">
-                      {node.type === 'start' && <Play size={24} />}
-                      {node.type === 'success' && <CheckCircle size={24} />}
-                      {node.type === 'escalation' && <ArrowUp size={24} />}
-                      {node.type === 'exit' && <X size={24} />}
-                      {node.type === 'step' && <MessageCircle size={24} />}
+                  <div className="flex items-start space-x-3 md:space-x-4 w-full lg:w-auto mb-3 lg:mb-0">
+                    <div className="flex-shrink-0 mt-1">
+                      {node.type === 'start' && <Play size={20} className="md:w-6 md:h-6" />}
+                      {node.type === 'success' && <CheckCircle size={20} className="md:w-6 md:h-6" />}
+                      {node.type === 'escalation' && <ArrowUp size={20} className="md:w-6 md:h-6" />}
+                      {node.type === 'exit' && <X size={20} className="md:w-6 md:h-6" />}
+                      {node.type === 'step' && <MessageCircle size={20} className="md:w-6 md:h-6" />}
                     </div>
-                    <div className="text-center lg:text-left">
-                      <div className="font-bold text-lg">{node.label}</div>
-                      <div className="text-sm opacity-90 flex items-center space-x-2 mt-1">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <div className="font-bold text-base md:text-lg truncate">{node.label}</div>
+                        {node.priority && (
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityBadge(node.priority)}`}>
+                            {node.priority}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs md:text-sm opacity-90 flex flex-wrap items-center gap-1 md:gap-2">
                         <span>{node.count.toLocaleString()} users</span>
                         <span>•</span>
                         <span>{node.percentage.toFixed(1)}%</span>
@@ -527,40 +617,42 @@ const ConversationFlow = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-6">
-                    {/* Satisfaction */}
-                    <div className="flex items-center space-x-2">
-                      <ThumbsUp size={16} className="text-green-500" />
-                      <span className="font-semibold">{node.satisfaction.toFixed(1)}</span>
-                    </div>
-
-                    {/* Trend */}
-                    <div className="flex items-center space-x-2">
-                      {getTrendIcon(node.trend)}
-                      <span className={`text-sm font-semibold ${
-                        node.improvement >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {node.improvement >= 0 ? '+' : ''}{node.improvement}%
-                      </span>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="w-24 lg:w-32">
-                      <div className="flex justify-between text-xs text-current opacity-80 mb-1">
-                        <span>Progress</span>
-                        <span>{node.percentage.toFixed(1)}%</span>
+                  <div className="flex items-center justify-between w-full lg:w-auto space-x-4 md:space-x-6">
+                    <div className="flex items-center space-x-3 md:space-x-6">
+                      {/* Satisfaction */}
+                      <div className="flex items-center space-x-1 md:space-x-2">
+                        <ThumbsUp size={14} className="md:w-4 md:h-4 text-green-500" />
+                        <span className="font-semibold text-sm md:text-base">{node.satisfaction.toFixed(1)}</span>
                       </div>
-                      <div className="w-full h-2 bg-current bg-opacity-20 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-current bg-opacity-50 transition-all duration-1000 ease-out"
-                          style={{ width: `${node.percentage}%` }}
-                        />
+
+                      {/* Trend */}
+                      <div className="flex items-center space-x-1 md:space-x-2">
+                        {getTrendIcon(node.trend)}
+                        <span className={`text-xs md:text-sm font-semibold ${
+                          node.improvement >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {node.improvement >= 0 ? '+' : ''}{node.improvement}%
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="hidden sm:block w-16 md:w-24 lg:w-32">
+                        <div className="flex justify-between text-xs text-current opacity-80 mb-1">
+                          <span>Progress</span>
+                          <span>{node.percentage.toFixed(1)}%</span>
+                        </div>
+                        <div className="w-full h-2 bg-current bg-opacity-20 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-current bg-opacity-50 transition-all duration-1000 ease-out"
+                            style={{ width: `${node.percentage}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
 
                     <ChevronRight 
-                      size={20} 
-                      className={`transition-transform duration-300 ${
+                      size={16}
+                      className={`md:w-5 md:h-5 transition-transform duration-300 flex-shrink-0 ${
                         expandedNode === node.id ? 'rotate-90' : ''
                       }`} 
                     />
@@ -570,40 +662,40 @@ const ConversationFlow = () => {
 
               {/* Expanded Details */}
               {expandedNode === node.id && (
-                <div className="mt-4 bg-gray-50 dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="mt-3 md:mt-4 bg-gray-50 dark:bg-gray-800 rounded-xl md:rounded-2xl p-4 md:p-6 border border-gray-200 dark:border-gray-700">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                     <div>
-                      <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Performance Metrics</h4>
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2 md:mb-3">Performance Metrics</h4>
                       <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Completion Rate</span>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">Completion Rate</span>
                           <span className="font-semibold">{node.percentage}%</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Avg Duration</span>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">Avg Duration</span>
                           <span className="font-semibold">{node.avgDuration}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Satisfaction</span>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">Satisfaction</span>
                           <span className="font-semibold">{node.satisfaction.toFixed(1)}/5.0</span>
                         </div>
                       </div>
                     </div>
 
                     <div>
-                      <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Trend Analysis</h4>
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2 md:mb-3">Trend Analysis</h4>
                       <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Quarter Improvement</span>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">Quarter Improvement</span>
                           <span className={`font-semibold ${node.improvement >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {node.improvement >= 0 ? '+' : ''}{node.improvement}%
                           </span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Trend</span>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">Trend</span>
                           <div className="flex items-center space-x-1">
                             {getTrendIcon(node.trend)}
-                            <span className="font-semibold capitalize">{node.trend}</span>
+                            <span className="font-semibold capitalize text-sm">{node.trend}</span>
                           </div>
                         </div>
                       </div>
@@ -611,11 +703,11 @@ const ConversationFlow = () => {
 
                     {node.issues && (
                       <div>
-                        <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Common Issues</h4>
+                        <h4 className="font-semibold text-gray-900 dark:text-white mb-2 md:mb-3">Common Issues</h4>
                         <ul className="space-y-1">
                           {node.issues.map((issue, idx) => (
                             <li key={idx} className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                              <AlertTriangle size={14} className="text-yellow-500" />
+                              <AlertTriangle size={12} className="text-yellow-500 flex-shrink-0" />
                               <span>{issue}</span>
                             </li>
                           ))}
@@ -627,21 +719,21 @@ const ConversationFlow = () => {
               )}
 
               {/* Connection Details */}
-              {index < currentFlow.nodes.length - 1 && currentFlow.connections && (
-                <div className="flex justify-center mt-4">
-                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-4 py-2">
-                    <div className="flex items-center space-x-4 text-sm">
+              {index < filteredNodes.length - 1 && currentFlow.connections && (
+                <div className="flex justify-center mt-2 md:mt-4">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-1 md:px-4 md:py-2">
+                    <div className="flex items-center space-x-2 md:space-x-4 text-xs md:text-sm">
                       <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
-                        <ArrowDown size={14} />
+                        <ArrowDown size={12} className="md:w-3 md:h-3" />
                         <span>
-                          {currentFlow.connections.find(c => c.from === node.id && c.to === currentFlow.nodes[index + 1].id)?.percentage.toFixed(1) || 0}% continue
+                          {currentFlow.connections.find(c => c.from === node.id && c.to === filteredNodes[index + 1].id)?.percentage.toFixed(1) || 0}% continue
                         </span>
                       </div>
-                      {currentFlow.connections.find(c => c.from === node.id && c.to !== currentFlow.nodes[index + 1].id) && (
+                      {currentFlow.connections.find(c => c.from === node.id && c.to !== filteredNodes[index + 1].id) && (
                         <div className="flex items-center space-x-1 text-red-600 dark:text-red-400">
-                          <ArrowRight size={14} />
+                          <ArrowRight size={12} className="md:w-3 md:h-3" />
                           <span>
-                            {currentFlow.connections.find(c => c.from === node.id && c.to !== currentFlow.nodes[index + 1].id)?.percentage.toFixed(1) || 0}% exit
+                            {currentFlow.connections.find(c => c.from === node.id && c.to !== filteredNodes[index + 1].id)?.percentage.toFixed(1) || 0}% exit
                           </span>
                         </div>
                       )}
@@ -655,16 +747,16 @@ const ConversationFlow = () => {
       </div>
 
       {/* Insights Section */}
-      <div className="bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-blue-900/20 rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
-        <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center space-x-2">
-          <Sparkles size={20} className="text-blue-500" />
+      <div className="bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-blue-900/20 rounded-xl md:rounded-2xl p-4 md:p-6 border border-gray-200 dark:border-gray-700">
+        <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-3 md:mb-4 flex items-center space-x-2">
+          <Sparkles size={18} className="text-blue-500" />
           <span>Key Insights</span>
         </h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {currentFlow.insights.map((insight, index) => (
-            <div key={index} className="flex items-start space-x-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-              <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-              <p className="text-sm text-gray-700 dark:text-gray-300">{insight}</p>
+            <div key={index} className="flex items-start space-x-2 md:space-x-3 p-2 md:p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+              <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{insight}</p>
             </div>
           ))}
         </div>

@@ -143,9 +143,8 @@ const SentimentAnalysis: React.FC = () => {
                       {data.percentage.toFixed(1)}%
                     </span>
                     <span
-                      className={`text-sm font-medium ${
-                        data.change.startsWith('+') ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
-                      }`}
+                      className={`text-sm font-medium ${data.change.startsWith('+') ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
+                        }`}
                     >
                       {data.change}
                     </span>
@@ -153,9 +152,8 @@ const SentimentAnalysis: React.FC = () => {
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <div
-                    className={`h-2 rounded-full transition-all duration-1000 ease-out ${
-                      sentiment === 'positive' ? 'bg-green-500' : sentiment === 'negative' ? 'bg-red-500' : 'bg-yellow-500'
-                    }`}
+                    className={`h-2 rounded-full transition-all duration-1000 ease-out ${sentiment === 'positive' ? 'bg-green-500' : sentiment === 'negative' ? 'bg-red-500' : 'bg-yellow-500'
+                      }`}
                     style={{ width: `${data.percentage}%` }}
                   />
                 </div>
@@ -202,45 +200,42 @@ const SentimentAnalysis: React.FC = () => {
           </button>
         </div>
 
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-  {trendingTopics.map((topic, index) => {
-    const TrendIcon = getTrendIcon(topic.trend);
-    return (
-      <div
-        key={topic.topic}
-        className="flex flex-col justify-between h-full p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-all duration-300"
-      >
-        {/* Header: Rank, Topic, Sentiment */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-sm font-semibold text-gray-900 dark:text-white">
-              {index + 1}
-            </div>
-            <div className="flex flex-col">
-              <span className="font-semibold text-gray-900 dark:text-white truncate">
-                {topic.topic}
-              </span>
-              <span className={`mt-1 px-2 py-0.5 w-fit rounded-full text-xs font-medium ${getSentimentColor(topic.sentiment)}`}>
-                {topic.sentiment}
-              </span>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 ">
+          {trendingTopics.map((topic, index) => {
+            const TrendIcon = getTrendIcon(topic.trend);
+            return (
+              <div
+                key={topic.topic}
+                className="flex flex-col justify-between h-full p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-all duration-300"
+              >
+                {/* Header: Rank, Topic, Sentiment */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-sm font-semibold text-gray-900 dark:text-white">
+                      {index + 1}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-gray-900 dark:text-white truncate">
+                        {topic.topic}
+                      </span>
+                      <span className={`mt-1 px-2 py-0.5 w-fit rounded-full text-xs font-medium ${getSentimentColor(topic.sentiment)}`}>
+                        {topic.sentiment}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer: Mentions + Trend Icon */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {topic.mentions.toLocaleString()} mentions
+                  </span>
+                  <TrendIcon size={18} className={getTrendColor(topic.trend)} />
+                </div>
+              </div>
+            );
+          })}
         </div>
-
-        {/* Footer: Mentions + Trend Icon */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            {topic.mentions.toLocaleString()} mentions
-          </span>
-          <TrendIcon size={18} className={getTrendColor(topic.trend)} />
-        </div>
-      </div>
-    );
-  })}
-</div>
-
-
-
         <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
           <button
             className="w-full py-2 text-sm font-medium text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors"

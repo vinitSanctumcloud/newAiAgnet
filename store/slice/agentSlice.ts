@@ -167,6 +167,25 @@ export const updateAgentStep3 = createAsyncThunk(
   ) => {
     try {
       const token = localStorage.getItem("auth-token");
+
+      // If docFiles are present, send them to the additional webhook API first
+      if (data.docFiles && data.docFiles.length > 0) {
+        const webhookFormData = new FormData();
+        data.docFiles.forEach((file) => webhookFormData.append("data", file));  // Changed to "data" to match n8n expectation
+
+        await axios.post(
+          "https://n8n-c4wwksg84c84c84coo4gws4o.prod.sanctumcloud.com/webhook/upload-file",
+          webhookFormData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+      }
+
+      // Proceed with the original Step 3 update
       const formData = new FormData();
       if (data.manualEntry) {
         formData.append("manualEntry", JSON.stringify(data.manualEntry));

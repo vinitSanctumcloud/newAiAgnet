@@ -281,7 +281,9 @@ export default function AiAgentPage() {
 
       if (result) {
         setLocalAgent(result);
-        toast.success(`Step ${currentStep + 1} saved successfully`);
+        toast.success(`Step ${currentStep + 1} saved successfully`,{
+          position: 'top-right'
+        });
 
         if (currentStep < steps.length - 1) {
           setCurrentStep(currentStep + 1);

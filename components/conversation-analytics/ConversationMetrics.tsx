@@ -494,7 +494,7 @@ const ConversationMetrics: React.FC = () => {
   };
 
   const SkeletonLoader: React.FC = () => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       {[...Array(6)].map((_, index) => (
         <div key={index} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 animate-pulse">
           <div className="flex items-center justify-between mb-4">
@@ -624,7 +624,7 @@ const ConversationMetrics: React.FC = () => {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3  gap-6">
         {metrics.map((metric) => {
           const Icon = iconMap[metric.icon];
           const colorClass = colorClasses[metric.color];
