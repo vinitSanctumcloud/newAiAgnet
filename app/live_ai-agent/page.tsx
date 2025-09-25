@@ -427,7 +427,7 @@ const AIAgentPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-    <div className=" flex items-center justify-center p-4">
+    <div className="min-h-screen  flex items-center justify-center">
       <div
         className="w-full max-w-md bg-white rounded-2xl flex flex-col overflow-hidden relative h-[600px] shadow-xl"
         style={{ border: `1px solid ${primaryBorder}` }}
