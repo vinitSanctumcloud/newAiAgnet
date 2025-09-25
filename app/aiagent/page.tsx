@@ -175,7 +175,7 @@ export default function AiAgentPage() {
   // Handle errors from Redux
   useEffect(() => {
     if (error) {
-      toast.error(error);
+      toast.error(error, {position: 'top-right'});
     }
   }, [error]);
 
@@ -225,7 +225,8 @@ export default function AiAgentPage() {
 
     const errors = validateStep(currentStep);
     if (errors.length > 0) {
-      errors.forEach(error => toast.error(error));
+      const errorMessage = errors.join('\n');
+      toast.error(errorMessage, {position: 'top-right'});
       return;
     }
 
@@ -293,7 +294,7 @@ export default function AiAgentPage() {
 
     } catch (err: any) {
       console.error('Save error:', err);
-      toast.error(err.message || `Failed to save step ${currentStep + 1}`);
+      toast.error(err.message || `Failed to save step ${currentStep + 1}`, {position: 'top-right'});
     } finally {
       setIsSubmitting(false);
     }
@@ -315,7 +316,7 @@ export default function AiAgentPage() {
       setIsDialogOpen(true);
 
     } catch (err: any) {
-      toast.error(err.message || 'Failed to complete setup');
+      toast.error(err.message || 'Failed to complete setup', {position: 'top-right'});
     } finally {
       setIsSubmitting(false);
     }
@@ -327,7 +328,7 @@ export default function AiAgentPage() {
     if (step <= currentCompletedStep + 1) {
       setCurrentStep(step);
     } else {
-      toast.error('Please complete the previous steps first');
+      toast.error('Please complete the previous steps first', {position: 'top-right'});
     }
   }, [maxCompleted]);
 

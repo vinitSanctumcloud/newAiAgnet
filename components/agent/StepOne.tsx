@@ -250,7 +250,7 @@ export default function StepOne({ agent, onAgentChange }: StepOneProps) {
                   </div>
                   
                   {/* Predefined Color Palette */}
-                  <div className="grid grid-cols-5 xs:grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-1.5 sm:gap-2">
+                  <div className="grid grid-cols-5 xs:grid-cols-6 sm:grid-cols-5 gap-1.5 sm:gap-2">
                     {colorPalette.map((color) => (
                       <button
                         key={color}
@@ -310,7 +310,7 @@ export default function StepOne({ agent, onAgentChange }: StepOneProps) {
           </div>
 
           {/* Media Uploads */}
-          <div className="space-y-6 sm:space-y-8">
+          <div className="space-y-6 sm:space-y-8 flex justify-between flex-col">
             {/* Logo Upload */}
             <div>
               <Label className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 mb-3 sm:mb-4">
@@ -413,7 +413,7 @@ export default function StepOne({ agent, onAgentChange }: StepOneProps) {
 
             {/* Banner Upload */}
             <div>
-              <Label className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 mb-3 sm:mb-4">
+              <Label className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100">
                 <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full flex-shrink-0"></div>
                 Banner Image
                 <span className="text-xs sm:text-sm text-slate-500 font-normal ml-0 sm:ml-1">(Optional - 16:9 ratio recommended)</span>

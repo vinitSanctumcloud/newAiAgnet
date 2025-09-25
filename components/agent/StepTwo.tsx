@@ -33,9 +33,8 @@ export default function StepTwo({ agent, onAgentChange }: StepTwoProps) {
 
   const handleChange = (field: keyof IAIAgent, value: any) => {
     onAgentChange({ [field]: value });
-    if (touched[field]) {
-      setErrors((prev) => ({ ...prev, [field]: validateField(field, value) }));
-    }
+    // Validate the field immediately to update errors
+    setErrors((prev) => ({ ...prev, [field]: validateField(field, value) }));
   };
 
   const handleBlur = (field: keyof IAIAgent) => {
@@ -102,8 +101,7 @@ export default function StepTwo({ agent, onAgentChange }: StepTwoProps) {
                   <DropdownMenuItem
                     key={tone}
                     onSelect={() => {
-                      handleChange('tone', tone);
-                      handleBlur('tone');
+                      handleChange('tone', tone); // Update agent state and validate
                     }}
                     className="p-2 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer"
                   >
@@ -176,8 +174,7 @@ export default function StepTwo({ agent, onAgentChange }: StepTwoProps) {
                   <DropdownMenuItem
                     key={language}
                     onSelect={() => {
-                      handleChange('languages', language);
-                      handleBlur('languages');
+                      handleChange('languages', language); // Update agent state and validate
                     }}
                     className="p-2 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer"
                   >

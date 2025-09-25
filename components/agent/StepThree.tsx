@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Upload, Trash2, Plus, Edit, Search, AlertCircle, FileText, Download, FileSpreadsheet } from 'lucide-react';
+import { Upload, Trash2, Plus, Edit, Search, AlertCircle, FileText, Download, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -22,17 +22,15 @@ interface StepThreeProps {
 export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
   const [openFAQDialog, setOpenFAQDialog] = useState(false);
   const [openAddEditDialog, setOpenAddEditDialog] = useState(false);
-  const [openBulkUploadDialog, setOpenBulkUploadDialog] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [newFAQ, setNewFAQ] = useState<FAQItem>({ question: '', answer: '' });
+  const [newFAQs, setNewFAQs] = useState<FAQItem[]>([{ question: '', answer: '' }]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [errors, setErrors] = useState<{ manualEntry?: string; docFiles?: string; bulkUpload?: string }>({});
+  const [errors, setErrors] = useState<{ manualEntry?: string; docFiles?: string }>({});
   const [dragOver, setDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [intervalId, setIntervalId] = useState<NodeJS.Timeout | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const bulkFileInputRef = React.useRef<HTMLInputElement>(null);
 
   const filteredFAQs = useMemo(() => {
     return (agent.manualEntry || []).filter(
@@ -67,14 +65,12 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
     []
   );
 
-  // Clear interval on unmount
   useEffect(() => {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
   }, [intervalId]);
 
-  // Clear interval when progress completes
   useEffect(() => {
     if (uploadProgress >= 100 && intervalId) {
       clearInterval(intervalId);
@@ -82,51 +78,12 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
     }
   }, [uploadProgress, intervalId]);
 
-  // Call onAgentChange after render when progress completes
   useEffect(() => {
     if (uploadProgress >= 100 && pendingFiles.length > 0) {
       onAgentChange({ docFiles: [...(agent.docFiles || []), ...pendingFiles] });
       setPendingFiles([]);
-      // Optionally reset progress here if you want to hide the bar immediately
     }
   }, [uploadProgress, pendingFiles, agent.docFiles, onAgentChange]);
-
-  const handleBulkFAQUpload = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      if (!file.name.endsWith('.csv')) {
-        setErrors((prev) => ({ ...prev, bulkUpload: 'Please upload a CSV file' }));
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target?.result as string;
-        try {
-          const rows = text.split('\n').map((row) => row.split(',').map((cell) => cell.trim()));
-          const newFAQs: FAQItem[] = rows.slice(1).filter(row => row.length >= 2).map((row) => ({
-            question: row[0],
-            answer: row[1]
-          })).filter(faq => faq.question && faq.answer);
-
-          if (newFAQs.length === 0) {
-            setErrors((prev) => ({ ...prev, bulkUpload: 'No valid FAQs found in CSV' }));
-            return;
-          }
-
-          onAgentChange({ manualEntry: [...(agent.manualEntry || []), ...newFAQs] });
-          setErrors((prev) => ({ ...prev, bulkUpload: undefined }));
-          setOpenBulkUploadDialog(false);
-        } catch (error) {
-          setErrors((prev) => ({ ...prev, bulkUpload: 'Error parsing CSV file' }));
-        }
-      };
-      reader.readAsText(file);
-    },
-    [agent.manualEntry, onAgentChange]
-  );
 
   const downloadFAQ = useCallback((faq: FAQItem) => {
     const csvContent = `Question,Answer\n"${faq.question.replace(/"/g, '""')}","${faq.answer.replace(/"/g, '""')}"`;
@@ -150,40 +107,48 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
     [agent.docFiles, onAgentChange]
   );
 
-  const handleFAQChange = (field: keyof FAQItem, value: string) => {
-    setNewFAQ((prev) => ({ ...prev, [field]: value }));
+  const handleFAQChange = (index: number, field: keyof FAQItem, value: string) => {
+    setNewFAQs((prev) =>
+      prev.map((faq, i) => (i === index ? { ...faq, [field]: value } : faq))
+    );
   };
 
-  const validateFAQ = () => {
-    if (!newFAQ.question.trim()) {
-      setErrors((prev) => ({ ...prev, manualEntry: 'Question is required' }));
-      return false;
-    }
-    if (!newFAQ.answer.trim()) {
-      setErrors((prev) => ({ ...prev, manualEntry: 'Answer is required' }));
+  const addNewFAQField = () => {
+    setNewFAQs((prev) => [...prev, { question: '', answer: '' }]);
+  };
+
+  const removeFAQField = (index: number) => {
+    setNewFAQs((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const validateFAQs = () => {
+    const invalidFAQs = newFAQs.some(
+      (faq) => !faq.question.trim() || !faq.answer.trim()
+    );
+    if (invalidFAQs) {
+      setErrors((prev) => ({ ...prev, manualEntry: 'All questions and answers are required' }));
       return false;
     }
     setErrors((prev) => ({ ...prev, manualEntry: undefined }));
     return true;
   };
 
-  const addOrUpdateFAQ = () => {
-    if (!validateFAQ()) return;
+  const addOrUpdateFAQs = () => {
+    if (!validateFAQs()) return;
     const updatedFAQs = [...(agent.manualEntry || [])];
     if (editingIndex !== null) {
-      updatedFAQs[editingIndex] = newFAQ;
+      updatedFAQs[editingIndex] = newFAQs[0];
     } else {
-      updatedFAQs.push(newFAQ);
+      updatedFAQs.push(...newFAQs);
     }
     onAgentChange({ manualEntry: updatedFAQs });
-    setNewFAQ({ question: '', answer: '' }); // Reset form for next entry
-    setEditingIndex(null); // Clear editing mode
-    // Dialog remains open for adding more FAQs
+    setNewFAQs([{ question: '', answer: '' }]);
+    setEditingIndex(null);
   };
 
   const finishAddingFAQs = () => {
     setOpenAddEditDialog(false);
-    setNewFAQ({ question: '', answer: '' });
+    setNewFAQs([{ question: '', answer: '' }]);
     setEditingIndex(null);
     setErrors({});
   };
@@ -198,26 +163,26 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
 
   return (
     <TooltipProvider>
-      <Card className="w-full bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 shadow-xl rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 p-4 sm:p-6">
+      <Card className="w-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 shadow-lg rounded-xl border border-gray-200 dark:border-gray-700">
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 min-h-[450px]">
           {/* Documents Section */}
-          <div className="space-y-4 sm:space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-              <Label className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+          <div className="space-y-6 flex flex-col h-full">
+            <div className="flex items-center justify-between">
+              <Label className="text-lg font-semibold text-gray-800 dark:text-gray-100">
                 Documents
-                <span className="text-red-500 ml-1">*</span>
+                <span className="text-red-600 ml-1">*</span>
               </Label>
-              <Badge variant="secondary" className="px-3 py-1 text-xs sm:text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+              <Badge className="px-3 py-1 bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200">
                 {agent.docFiles?.length || 0} files
               </Badge>
             </div>
             
             <div
               className={cn(
-                "border-2 border-dashed rounded-xl p-4 sm:p-6 text-center transition-all duration-200 cursor-pointer",
+                "border-2 border-dashed rounded-xl p-6 text-center transition-all duration-200 cursor-pointer flex-grow flex items-center justify-center",
                 dragOver 
-                  ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 scale-105' 
-                  : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 scale-105' 
+                  : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-700'
               )}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -231,26 +196,32 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
               }}
               onClick={() => fileInputRef.current?.click()}
             >
-              <Upload className="mx-auto h-6 w-6 sm:h-8 sm:w-8 text-gray-400 mb-2 sm:mb-3" />
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Drag and drop files here or click to upload
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 sm:mb-3">
-                Supports PDF, DOC, DOCX (Max 10MB each)
-              </p>
-              <Button variant="outline" size="sm" className="rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50">
-                <Upload className="h-4 w-4 mr-2" />
-                Choose Files
-              </Button>
-              
-              <Input
-                type="file"
-                accept=".pdf,.doc,.docx"
-                multiple
-                className="hidden"
-                ref={fileInputRef}
-                onChange={handleFileChange} 
-              />
+              <div>
+                <Upload className="mx-auto h-8 w-8 text-gray-500 dark:text-gray-400 mb-3" />
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                  Drag and drop files here or click to upload
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                  Supports PDF, DOC, DOCX (Max 10MB each)
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="rounded-lg bg-blue-50 dark:bg-blue-900/50 hover:bg-blue-100 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-300 border-blue-300 dark:border-blue-600"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Choose Files
+                </Button>
+                
+                <Input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  multiple
+                  className="hidden"
+                  ref={fileInputRef}
+                  onChange={handleFileChange} 
+                />
+              </div>
             </div>
 
             {uploadProgress > 0 && uploadProgress < 100 && (
@@ -259,12 +230,12 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
                   <span>Uploading...</span>
                   <span>{uploadProgress}%</span>
                 </div>
-                <Progress value={uploadProgress} className="h-2 bg-blue-100 dark:bg-blue-900/30" />
+                <Progress value={uploadProgress} className="h-2 bg-gray-200 dark:bg-gray-700" />
               </div>
             )}
 
             {errors.docFiles && (
-              <div className="flex items-center gap-2 text-red-500 text-xs sm:text-sm p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+              <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
                 <AlertCircle className="h-4 w-4" />
                 {errors.docFiles}
               </div>
@@ -272,14 +243,14 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
 
             {agent.docFiles && agent.docFiles.length > 0 && (
               <div className="space-y-3">
-                <h4 className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">Uploaded Files</h4>
-                <div className="space-y-2 max-h-48 sm:max-h-60 overflow-y-auto pr-2">
+                <h4 className="font-medium text-gray-800 dark:text-gray-100 text-base">Uploaded Files</h4>
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                   {agent.docFiles.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs sm:text-sm transition-all hover:bg-gray-100 dark:hover:bg-gray-600/50">
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm transition-all hover:bg-gray-100 dark:hover:bg-gray-700">
+                      <div className="flex items-center gap-3">
+                        <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                         <div>
-                          <p className="font-medium text-gray-900 dark:text-white truncate max-w-[150px] sm:max-w-[200px]">
+                          <p className="font-medium text-gray-800 dark:text-gray-100 truncate max-w-[200px]">
                             {typeof file === 'string' ? file.split('/').pop() : file.name}
                           </p>
                           <p className="text-gray-500 dark:text-gray-400">
@@ -293,7 +264,7 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
                             variant="ghost" 
                             size="sm" 
                             onClick={() => removeFile(index)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 p-1"
+                            className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 p-1"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -308,22 +279,22 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
           </div>
 
           {/* FAQs Section */}
-          <div className="space-y-4 sm:space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-              <Label className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+          <div className="space-y-6 flex flex-col h-full">
+            <div className="flex items-center justify-between">
+              <Label className="text-lg font-semibold text-gray-800 dark:text-gray-100">
                 Frequently Asked Questions
-                <span className="text-red-500 ml-1">*</span>
+                <span className="text-red-600 ml-1">*</span>
               </Label>
-              <Badge variant="secondary" className="px-3 py-1 text-xs sm:text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+              <Badge className="px-3 py-1 bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200">
                 {agent.manualEntry?.length || 0} FAQs
               </Badge>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row gap-2">
+            <div className="space-y-4 flex-grow">
+              <div className="flex gap-2">
                 <Button 
                   onClick={() => setOpenFAQDialog(true)}
-                  className="flex-1 h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                  className="flex-1 h-12 rounded-lg bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white"
                 >
                   <Search className="h-4 w-4 mr-2" />
                   Manage FAQs
@@ -331,23 +302,22 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
                 <Button 
                   onClick={() => {
                     setEditingIndex(null);
-                    setNewFAQ({ question: '', answer: '' });
+                    setNewFAQs([{ question: '', answer: '' }]);
                     setOpenAddEditDialog(true);
                   }}
-                  className="h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm"
+                  className="h-12 rounded-lg bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add FAQ
+                  Add FAQs
                 </Button>
-               
               </div>
 
               {agent.manualEntry && agent.manualEntry.length > 0 ? (
-                <div className="space-y-3 max-h-48 sm:max-h-60 overflow-y-auto pr-2">
-                  <h4 className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">Recent FAQs</h4>
+                <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                  <h4 className="font-medium text-gray-800 dark:text-gray-100 text-base">Recent FAQs</h4>
                   {agent.manualEntry.slice(0, 3).map((faq, index) => (
-                    <div key={index} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-xs sm:text-sm transition-all hover:bg-gray-100 dark:hover:bg-gray-600/50">
-                      <p className="font-medium text-gray-900 dark:text-white mb-1 line-clamp-1">
+                    <div key={index} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm transition-all hover:bg-gray-100 dark:hover:bg-gray-700">
+                      <p className="font-medium text-gray-800 dark:text-gray-100 mb-1 line-clamp-1">
                         {faq.question}
                       </p>
                       <p className="text-gray-600 dark:text-gray-400 line-clamp-2">
@@ -362,11 +332,13 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
                   )}
                 </div>
               ) : (
-                <div className="text-center p-4 sm:p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl">
-                  <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                    No FAQs added yet. Click "Add FAQ" or "Bulk Upload" to get started.
-                  </p>
+                <div className="text-center p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl flex items-center justify-center h-[calc(100%-4rem)]">
+                  <div>
+                    <FileText className="h-8 w-8 text-gray-500 dark:text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      No FAQs added yet. Click "Add FAQs" to get started.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -375,32 +347,32 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
 
         {/* FAQ Management Dialog */}
         <Dialog open={openFAQDialog} onOpenChange={setOpenFAQDialog}>
-          <DialogContent className="max-w-md sm:max-w-3xl md:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col rounded-2xl bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
             <DialogHeader className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <DialogTitle className="text-lg sm:text-xl font-bold">Manage FAQs</DialogTitle>
-              <DialogDescription className="text-xs sm:text-sm">
+              <DialogTitle className="text-xl font-bold text-gray-800 dark:text-gray-100">Manage FAQs</DialogTitle>
+              <DialogDescription className="text-sm text-gray-600 dark:text-gray-400">
                 Search, edit, download, or delete your frequently asked questions
               </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4 flex-1 overflow-hidden flex flex-col p-4">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 dark:text-gray-400" />
                 <Input
                   placeholder="Search FAQs by question or answer..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-12 rounded-xl border-2 border-gray-200 dark:border-gray-700"
+                  className="pl-10 h-12 rounded-lg border-2 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                 />
               </div>
               
-              <div className="flex-1 overflow-auto rounded-xl border border-gray-200 dark:border-gray-700">
+              <div className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-700">
                 <Table>
                   <TableHeader className="sticky top-0 bg-gray-50 dark:bg-gray-800">
                     <TableRow>
-                      <TableHead className="w-4/12 text-xs sm:text-sm">Question</TableHead>
-                      <TableHead className="w-6/12 text-xs sm:text-sm">Answer Preview</TableHead>
-                      <TableHead className="text-right text-xs sm:text-sm w-2/12">Actions</TableHead>
+                      <TableHead className="w-4/12 text-sm text-gray-800 dark:text-gray-100">Question</TableHead>
+                      <TableHead className="w-6/12 text-sm text-gray-800 dark:text-gray-100">Answer Preview</TableHead>
+                      <TableHead className="text-right text-sm text-gray-800 dark:text-gray-100 w-2/12">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -408,15 +380,15 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
                       filteredFAQs.map((faq, filteredIndex) => {
                         const originalIndex = agent.manualEntry?.indexOf(faq) ?? -1;
                         return (
-                          <TableRow key={filteredIndex} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 text-xs sm:text-sm">
-                            <TableCell className="font-medium line-clamp-2">{faq.question}</TableCell>
+                          <TableRow key={filteredIndex} className="hover:bg-gray-100 dark:hover:bg-gray-700 text-sm">
+                            <TableCell className="font-medium text-gray-800 dark:text-gray-100 line-clamp-2">{faq.question}</TableCell>
                             <TableCell>
                               <p className="text-gray-600 dark:text-gray-400 line-clamp-2">
                                 {faq.answer}
                               </p>
                             </TableCell>
                             <TableCell>
-                              <div className="flex justify-end gap-1 sm:gap-2">
+                              <div className="flex justify-end gap-2">
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
@@ -425,11 +397,11 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
                                       onClick={() => {
                                         if (originalIndex !== -1) {
                                           setEditingIndex(originalIndex);
-                                          setNewFAQ(faq);
+                                          setNewFAQs([faq]);
                                           setOpenAddEditDialog(true);
                                         }
                                       }}
-                                      className="h-8 w-8 p-0"
+                                      className="h-8 w-8 p-0 border-gray-300 dark:border-gray-600 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
                                     >
                                       <Edit className="h-4 w-4" />
                                     </Button>
@@ -442,7 +414,7 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => downloadFAQ(faq)}
-                                      className="h-8 w-8 p-0"
+                                      className="h-8 w-8 p-0 border-gray-300 dark:border-gray-600 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
                                     >
                                       <Download className="h-4 w-4" />
                                     </Button>
@@ -460,7 +432,7 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
                                           onAgentChange({ manualEntry: newFAQs });
                                         }
                                       }}
-                                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                      className="h-8 w-8 p-0 border-gray-300 dark:border-gray-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
@@ -474,7 +446,7 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={3} className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
+                        <TableCell colSpan={3} className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
                           {searchTerm ? 'No FAQs match your search' : 'No FAQs added yet'}
                         </TableCell>
                       </TableRow>
@@ -484,67 +456,99 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
               </div>
             </div>
             
-            <DialogFooter className="mt-4 p-4 border-t border-gray-200 dark:border-gray-700">
-              <Button variant="outline" onClick={() => setOpenFAQDialog(false)} className="rounded-lg">
+            <DialogFooter className="p-4 border-t border-gray-200 dark:border-gray-700">
+              <Button 
+                variant="outline" 
+                onClick={() => setOpenFAQDialog(false)} 
+                className="rounded-lg border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
                 Close
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* Add/Edit FAQ Dialog */}
+        {/* Add/Edit FAQs Dialog */}
         <Dialog open={openAddEditDialog} onOpenChange={setOpenAddEditDialog}>
-          <DialogContent className="max-w-md sm:max-w-lg md:max-w-2xl rounded-2xl bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
             <DialogHeader className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <DialogTitle className="text-lg sm:text-xl font-bold">
-                {editingIndex !== null ? 'Edit FAQ' : 'Add New FAQ'}
+              <DialogTitle className="text-xl font-bold text-gray-800 dark:text-gray-100">
+                {editingIndex !== null ? 'Edit FAQ' : 'Add FAQs'}
               </DialogTitle>
-              <DialogDescription className="text-xs sm:text-sm">
+              <DialogDescription className="text-sm text-gray-600 dark:text-gray-400">
                 {editingIndex !== null 
                   ? 'Update the question and answer for this FAQ' 
-                  : 'Create new frequently asked questions one by one'}
+                  : 'Create multiple frequently asked questions'}
               </DialogDescription>
             </DialogHeader>
             
-            <div className="space-y-4 sm:space-y-6 p-4">
-              <div className="space-y-2 sm:space-y-3">
-                <Label htmlFor="question" className="text-sm font-medium">
-                  Question <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="question"
-                  value={newFAQ.question}
-                  onChange={(e) => handleFAQChange('question', e.target.value)}
-                  placeholder="Enter the question that users might ask..."
-                  className={cn(
-                    "h-12 rounded-xl border-2",
-                    errors.manualEntry && !newFAQ.question ? 'border-red-500 ring-4 ring-red-500/20' : 'border-gray-200 dark:border-gray-700'
-                  )}
-                />
-              </div>
-              
-              <div className="space-y-2 sm:space-y-3">
-                <Label htmlFor="answer" className="text-sm font-medium">
-                  Answer <span className="text-red-500">*</span>
-                </Label>
-                <Textarea
-                  id="answer"
-                  value={newFAQ.answer}
-                  onChange={(e) => handleFAQChange('answer', e.target.value)}
-                  placeholder="Provide a clear and concise answer..."
-                  rows={4}
-                  className={cn(
-                    "min-h-[120px] rounded-xl border-2",
-                    errors.manualEntry && !newFAQ.answer ? 'border-red-500 ring-4 ring-red-500/20' : 'border-gray-200 dark:border-gray-700'
-                  )}
-                />
-              </div>
+            <div className="space-y-6 p-4">
+              {newFAQs.map((faq, index) => (
+                <div key={index} className="space-y-4 border-b border-gray-200 dark:border-gray-600 pb-4 relative">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                      FAQ {index + 1} <span className="text-red-600">*</span>
+                    </Label>
+                    {newFAQs.length > 1 && editingIndex === null && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFAQField(index)}
+                        className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    <Label htmlFor={`question-${index}`} className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                      Question
+                    </Label>
+                    <Input
+                      id={`question-${index}`}
+                      value={faq.question}
+                      onChange={(e) => handleFAQChange(index, 'question', e.target.value)}
+                      placeholder="Enter the question that users might ask..."
+                      className={cn(
+                        "h-12 rounded-lg border-2",
+                        errors.manualEntry && !faq.question ? 'border-red-600 dark:border-red-400 ring-4 ring-red-600/20 dark:ring-red-400/20' : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400'
+                      )}
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label htmlFor={`answer-${index}`} className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                      Answer
+                    </Label>
+                    <Textarea
+                      id={`answer-${index}`}
+                      value={faq.answer}
+                      onChange={(e) => handleFAQChange(index, 'answer', e.target.value)}
+                      placeholder="Provide a clear and concise answer..."
+                      rows={4}
+                      className={cn(
+                        "min-h-[120px] rounded-lg border-2",
+                        errors.manualEntry && !faq.answer ? 'border-red-600 dark:border-red-400 ring-4 ring-red-600/20 dark:ring-red-400/20' : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400'
+                      )}
+                    />
+                  </div>
+                </div>
+              ))}
               
               {errors.manualEntry && (
-                <div className="flex items-center gap-2 text-red-500 text-xs sm:text-sm p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
                   <AlertCircle className="h-4 w-4" />
                   {errors.manualEntry}
                 </div>
+              )}
+
+              {editingIndex === null && (
+                <Button
+                  onClick={addNewFAQField}
+                  className="w-full rounded-lg bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Another FAQ
+                </Button>
               )}
             </div>
             
@@ -552,101 +556,15 @@ export default function StepThree({ agent, onAgentChange }: StepThreeProps) {
               <Button
                 variant="outline"
                 onClick={finishAddingFAQs}
-                className="rounded-lg"
+                className="rounded-lg border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 Cancel
               </Button>
               <Button
-                onClick={() => {
-                  addOrUpdateFAQ();
-                  // Show a success message or visual feedback
-                  // Dialog stays open for adding more FAQs
-                }}
-                className="bg-blue-600 hover:bg-blue-700 rounded-lg"
+                onClick={addOrUpdateFAQs}
+                className="rounded-lg bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white"
               >
-                {editingIndex !== null ? 'Update FAQ' : 'Add FAQ and Continue'}
-              </Button>
-              {!editingIndex && (
-                <Button
-                  onClick={finishAddingFAQs}
-                  className="bg-green-600 hover:bg-green-700 rounded-lg"
-                >
-                  Finish Adding FAQs
-                </Button>
-              )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Bulk Upload Dialog */}
-        <Dialog open={openBulkUploadDialog} onOpenChange={setOpenBulkUploadDialog}>
-          <DialogContent className="max-w-md sm:max-w-lg rounded-2xl bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">
-            <DialogHeader className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <DialogTitle className="text-lg sm:text-xl font-bold">Bulk Upload FAQs</DialogTitle>
-              <DialogDescription className="text-xs sm:text-sm">
-                Upload a CSV file containing FAQs (format: Question,Answer)
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4 p-4">
-              <div
-                className={cn(
-                  "border-2 border-dashed rounded-xl p-4 text-center transition-all duration-200 cursor-pointer",
-                  dragOver 
-                    ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 scale-105' 
-                    : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                )}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragOver(false);
-                  handleBulkFAQUpload({ target: { files: e.dataTransfer.files } } as any);
-                }}
-                onClick={() => bulkFileInputRef.current?.click()}
-              >
-                <FileSpreadsheet className="mx-auto h-6 w-6 text-gray-400 mb-2" />
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Drag and drop CSV file here or click to upload
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                  CSV format: Question,Answer (Max 10MB)
-                </p>
-                <Button variant="outline" size="sm" className="rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Choose CSV File
-                </Button>
-                
-                <Input
-                  type="file"
-                  accept=".csv"
-                  className="hidden"
-                  ref={bulkFileInputRef}
-                  onChange={handleBulkFAQUpload}
-                />
-              </div>
-
-              {errors.bulkUpload && (
-                <div className="flex items-center gap-2 text-red-500 text-xs sm:text-sm p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                  <AlertCircle className="h-4 w-4" />
-                  {errors.bulkUpload}
-                </div>
-              )}
-            </div>
-            
-            <DialogFooter className="p-4 border-t border-gray-200 dark:border-gray-700">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setOpenBulkUploadDialog(false);
-                  setErrors((prev) => ({ ...prev, bulkUpload: undefined }));
-                }}
-                className="rounded-lg"
-              >
-                Cancel
+                {editingIndex !== null ? 'Update FAQ' : 'Add FAQs'}
               </Button>
             </DialogFooter>
           </DialogContent>
