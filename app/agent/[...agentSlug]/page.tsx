@@ -18,6 +18,19 @@ interface Message {
   suggestedReply?: string;
 }
 
+ interface AgentInfo1 {
+  _id?: string;
+  aiAgentName: string;
+  agentDescription: string;
+  domainExpertise: string;
+  colorTheme: string;
+  logoFile: File | string | null;
+  bannerFile: File | string | null;
+  docFiles: string[] | File[] | undefined;
+  manualEntry?: Array<{ question: string; answer: string; _id?: string }>;
+  
+}
+
 const AIAgentPage: React.FC = () => {
   const { agentSlug } = useParams<{ agentSlug: string }>(); // Fetch agentSlug from URL path
   const [userInput, setUserInput] = useState('');
@@ -25,7 +38,7 @@ const AIAgentPage: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [isChatStarted, setIsChatStarted] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  console.log(agentSlug,"slug"  )
+  console.log(agentSlug, "slug");
   const [persona, setPersona] = useState<Persona>({
     greeting: 'Hello! How can I assist you today?',
     conversationStarters: ['What services do you offer?', 'How do I get started?', 'Tell me about support options'],
@@ -36,8 +49,7 @@ const AIAgentPage: React.FC = () => {
     enableFreeText: true,
     enableBranchingLogic: true,
   });
-  const [agentInfo, setAgentInfo] = useState<AgentInfo>({
-    userId: '',
+  const [agentInfo, setAgentInfo] = useState<AgentInfo1>({
     aiAgentName: 'Default AI Agent',
     agentDescription: 'A versatile AI assistant',
     domainExpertise: 'General Assistance',
@@ -106,18 +118,17 @@ const AIAgentPage: React.FC = () => {
 
     const fetchAgentData = async () => {
       setLoading(true);
-      console.log(agentSlug,"slug"  )
+      console.log(agentSlug, "slug");
       try {
         const response = await fetch(`https://qkkso80gw8ss0kscc8c4skkg.prod.sanctumcloud.com/api/auth/ai-agents/${agentSlug}`);
         if (!response.ok) {
           throw new Error(`API request failed with status ${response.status}`);
         }
         const result = await response.json();
-        console.log(result,"dataa")
+        console.log(result, "dataa");
         const agentData = result.data;
 
         setAgentInfo({
-          userId: agentData.userId || '',
           aiAgentName: agentData.aiAgentName || 'Default AI Agent',
           agentDescription: agentData.agentDescription || 'A versatile AI assistant',
           domainExpertise: agentData.domainExpertise || 'General Assistance',
