@@ -1,24 +1,22 @@
 'use client';
 import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
 import Image from 'next/image';
-import { useParams } from 'next/navigation'; // Import useParams to get URL parameters
+import { useParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Send, Mic, ArrowLeft, Bot, RefreshCw, Minimize2, MessageSquare, Star, ChevronRight } from 'lucide-react';
 import { AgentInfo, Persona } from '@/lib/type';
 import Link from 'next/link';
 
-// Define stricter types for Message
+// Updated Message interface without quickReplies and suggestedReply
 interface Message {
   id: string;
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
-  quickReplies?: string[];
-  suggestedReply?: string;
 }
 
- interface AgentInfo1 {
+interface AgentInfo1 {
   _id?: string;
   aiAgentName: string;
   agentDescription: string;
@@ -28,11 +26,10 @@ interface Message {
   bannerFile: File | string | null;
   docFiles: string[] | File[] | undefined;
   manualEntry?: Array<{ question: string; answer: string; _id?: string }>;
-  
 }
 
 const AIAgentPage: React.FC = () => {
-  const { agentSlug } = useParams<{ agentSlug: string }>(); // Fetch agentSlug from URL path
+  const { agentSlug } = useParams<{ agentSlug: string }>();
   const [userInput, setUserInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -108,7 +105,7 @@ const AIAgentPage: React.FC = () => {
     };
   }, [agentInfo.logoFile, agentInfo.bannerFile]);
 
-  // Fetch agent data directly using the provided API
+  // Fetch agent data
   useEffect(() => {
     if (!agentSlug) {
       setNoAgentMessage('No agent slug provided in the URL.');
@@ -181,7 +178,7 @@ const AIAgentPage: React.FC = () => {
     fetchAgentData();
   }, [agentSlug]);
 
-  // Load messages from localStorage on component mount
+  // Load messages from localStorage
   useEffect(() => {
     const savedMessages = localStorage.getItem('chatMessages');
     if (savedMessages) {
@@ -198,7 +195,7 @@ const AIAgentPage: React.FC = () => {
     }
   }, []);
 
-  // Save messages to localStorage whenever messages change
+  // Save messages to localStorage
   useEffect(() => {
     try {
       if (messages.length > 0) {
@@ -211,7 +208,7 @@ const AIAgentPage: React.FC = () => {
     }
   }, [messages]);
 
-  // Derive dynamic colors from agentInfo.colorTheme
+  // Derive dynamic colors
   const primaryColor = agentInfo.colorTheme || '#8B5CF6';
   const primaryColorDark = agentInfo.colorTheme
     ? `#${Math.floor(parseInt(agentInfo.colorTheme.slice(1), 16) * 0.7).toString(16).padStart(6, '0')}`
@@ -220,7 +217,7 @@ const AIAgentPage: React.FC = () => {
   const primaryBorder = agentInfo.colorTheme ? `${agentInfo.colorTheme}30` : '#8B5CF630';
   const primaryColor300 = agentInfo.colorTheme ? `${agentInfo.colorTheme}80` : '#8B5CF680';
 
-  // Get AI Agent name based on domain expertise
+  // Get AI Agent name
   const getAIAgentName = (): string => {
     if (agentInfo.domainExpertise) {
       return `${agentInfo.domainExpertise} Assistant`;
@@ -268,7 +265,6 @@ const AIAgentPage: React.FC = () => {
         text: botResponse,
         sender: 'bot',
         timestamp: new Date(),
-        suggestedReply: "Tell me more about the service options",
       };
 
       setMessages((prev) => [...prev, botMessage]);
@@ -331,7 +327,6 @@ const AIAgentPage: React.FC = () => {
         text: botResponse,
         sender: 'bot',
         timestamp: new Date(),
-        quickReplies: ['Explore services', 'Contact support', 'Request info'],
       };
 
       setMessages((prev) => [...prev, botMessage]);
@@ -347,14 +342,6 @@ const AIAgentPage: React.FC = () => {
     } finally {
       setIsTyping(false);
     }
-  };
-
-  const handleQuickReply = (reply: string) => {
-    handleSend(reply);
-  };
-
-  const handleSuggestedReply = (reply: string) => {
-    handleSend(reply);
   };
 
   const handleMicClick = () => {
@@ -630,43 +617,6 @@ const AIAgentPage: React.FC = () => {
                       </span>
                     </div>
                   </div>
-                  {message.quickReplies && message.sender === 'bot' && (
-                    <div className="flex justify-start mt-2 gap-2 flex-wrap">
-                      {message.quickReplies.map((reply, index) => (
-                        <Button
-                          key={index}
-                          variant="outline"
-                          size="sm"
-                          className="px-3 py-1 text-xs rounded-full transition-all hover:scale-105 shadow-sm"
-                          style={{
-                            borderColor: primaryColor300,
-                            color: primaryColor,
-                            backgroundColor: 'white',
-                          }}
-                          onClick={() => handleQuickReply(reply)}
-                        >
-                          {reply}
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                  {message.suggestedReply && message.sender === 'user' && (
-                    <div className="flex justify-start mt-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="px-3 py-1 text-xs rounded-full border transition-all hover:scale-105 shadow-sm"
-                        style={{
-                          color: primaryColor,
-                          borderColor: primaryBorder,
-                          backgroundColor: 'white',
-                        }}
-                        onClick={() => handleSuggestedReply(message.suggestedReply!)}
-                      >
-                        💡 {message.suggestedReply}
-                      </Button>
-                    </div>
-                  )}
                 </div>
               ))}
               {isTyping && (
