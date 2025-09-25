@@ -281,7 +281,7 @@ export default function AiAgentPage() {
 
       if (result) {
         setLocalAgent(result);
-        toast.success(`Step ${currentStep + 1} saved successfully`,{
+        toast.success(`Step ${currentStep + 1} saved successfully`, {
           position: 'top-right'
         });
 
@@ -346,14 +346,14 @@ export default function AiAgentPage() {
   // Generate agent slug and URL
   const agentSlug = localAgent.aiAgentSlug;
   const hostWithPort = window.location.host; // returns "localhost:5000"
-  console.log(agentSlug, hostWithPort,"data");
+  console.log(agentSlug, hostWithPort, "data");
   const agentUrl = `http://${hostWithPort}/agent/${agentSlug}`;
 
 
   return (
     <DashboardLayout>
       <Toaster richColors position="top-right" />
-      <div className="p-4">
+      <div className="">
         {/* Header Section */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
           <div className="px-4 py-6 sm:px-6">
@@ -449,18 +449,18 @@ export default function AiAgentPage() {
                         onClick={() => isAccessible && handleStepChange(index)}
                         disabled={!isAccessible}
                         className={`w-full p-4 rounded-lg border transition-all duration-200 text-left ${isActive
-                            ? `${stepColor.bg} ${stepColor.border} border-2 shadow-sm`
-                            : isCompleted
-                              ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 hover:shadow-sm'
-                              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                          ? `${stepColor.bg} ${stepColor.border} border-2 shadow-sm`
+                          : isCompleted
+                            ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 hover:shadow-sm'
+                            : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
                           } ${!isAccessible ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-sm'}`}
                       >
                         <div className="flex items-center gap-3">
                           <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${isCompleted
-                              ? 'bg-emerald-500 text-white'
-                              : isActive
-                                ? `${stepColor.activeBg} ${stepColor.text}`
-                                : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                            ? 'bg-emerald-500 text-white'
+                            : isActive
+                              ? `${stepColor.activeBg} ${stepColor.text}`
+                              : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                             }`}>
                             {isCompleted ? (
                               <CheckCircle className="h-4 w-4" />
@@ -471,8 +471,8 @@ export default function AiAgentPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className={`text-sm font-semibold truncate ${isActive ? stepColor.text :
-                                  isCompleted ? 'text-emerald-700 dark:text-emerald-400' :
-                                    'text-gray-600 dark:text-gray-400'
+                                isCompleted ? 'text-emerald-700 dark:text-emerald-400' :
+                                  'text-gray-600 dark:text-gray-400'
                                 }`}>
                                 {step.title}
                               </span>
@@ -570,78 +570,79 @@ export default function AiAgentPage() {
           </div>
         </div>
 
+        {/* Success Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[550px] p-6">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
+              <DialogTitle className="flex items-center gap-2 text-xl font-semibold text-gray-900">
                 <Sparkles className="h-5 w-5 text-indigo-600" />
                 AI Agent Setup Complete
               </DialogTitle>
               <DialogDescription asChild>
-                <div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    Your AI agent "<span className="font-medium text-foreground">{
-                      localAgent.aiAgentName || 'Your Agent'
-                    }</span>" is now ready to use!
+                <div className="space-y-6 mt-4">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    Your AI agent "<span className="font-medium text-gray-900">
+                      {localAgent.aiAgentName || 'Your Agent'}
+                    </span>" is now ready to use!
                   </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Globe className="h-4 w-4 text-indigo-500" />
-                      <span className="font-medium">Access URL:</span>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <Globe className="h-5 w-5 text-indigo-500" />
+                      Access URL
                     </div>
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                      <span className="font-mono text-sm truncate flex-1">
-                        {(() => {
-                          try {
-                            const url = new URL(agentUrl);
-                            return (
-                              <>
-                                <span className="text-indigo-600 font-semibold">{url.hostname}</span>
-                                <span className="text-gray-600">{url.pathname}</span>
-                              </>
-                            );
-                          } catch {
-                            return agentUrl;
-                          }
-                        })()}
-                      </span>
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex-1 min-w-0">
+                        {agentUrl.includes('://') ? (
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1">
+                            <span className="text-indigo-600 font-semibold truncate">
+                              {agentUrl.split('://')[1].split('/')[0]}
+                            </span>
+                            <span className="text-gray-600 break-all">
+                              /{agentUrl.split('/').slice(3).join('/')}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-600 break-all">{agentUrl}</span>
+                        )}
+                      </div>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="ml-2 shrink-0"
+                        className="ml-3 shrink-0 border-gray-300 hover:bg-gray-100"
                         onClick={() => navigator.clipboard.writeText(agentUrl)}
                       >
-                        <Copy className="h-3 w-3" />
+                        <Copy className="h-4 w-4" />
+                        <span className="ml-1">Copy</span>
                       </Button>
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Key className="h-4 w-4 text-amber-500" />
-                      <span className="font-medium">Agent Slug:</span>
+                  {agentSlug && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <Key className="h-5 w-5 text-amber-500" />
+                        Agent Slug
+                      </div>
+                      <div className="flex items-center justify-between p-4 bg-amber-50 rounded-lg border border-amber-200">
+                        <code className="font-mono text-sm text-amber-800 font-medium truncate flex-1">
+                          {agentSlug}
+                        </code>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="ml-3 shrink-0 border-amber-300 bg-amber-100 hover:bg-amber-200"
+                          onClick={() => navigator.clipboard.writeText(agentSlug)}
+                        >
+                          <Copy className="h-4 w-4" />
+                          <span className="ml-1">Copy</span>
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200">
-                      <code className="font-mono text-sm text-amber-800 font-medium">
-                        {agentSlug}
-                      </code>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="ml-2 shrink-0 border-amber-300 bg-amber-100 hover:bg-amber-200"
-                        onClick={() => navigator.clipboard.writeText(agentSlug ?? '')}
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  )}
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                     <div className="flex items-start gap-2">
-                      <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-                      <div className="text-xs text-blue-700">
+                      <Info className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+                      <div className="text-sm text-blue-700">
                         <strong>Pro Tip:</strong> Share the URL with your team or embed the agent on your website using the slug.
                       </div>
                     </div>
@@ -649,18 +650,19 @@ export default function AiAgentPage() {
                 </div>
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
               <Button
                 variant="outline"
                 onClick={() => window.open(agentUrl, '_blank')}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 text-gray-700 border-gray-300 hover:bg-gray-100"
+                disabled={!agentSlug}
               >
                 <ExternalLink className="h-4 w-4" />
                 Open Agent
               </Button>
               <Button
                 onClick={handleDialogClose}
-                className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2"
+                className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2 text-white"
               >
                 <LayoutDashboardIcon className="h-4 w-4" />
                 Go to Dashboard

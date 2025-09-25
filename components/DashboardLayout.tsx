@@ -111,7 +111,7 @@ function Sidebar({
 
       <div
         className={`
-        lg:w-64 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 flex flex-col shadow-lg
+        lg:w-52 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 flex flex-col shadow-lg
         fixed top-0 left-0 h-screen w-64 transform transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 lg:static z-40 border-r border-gray-200 dark:border-gray-700
@@ -198,7 +198,7 @@ function Sidebar({
                 >
                   <Bot size={18} />
                 </div>
-                <span>Live AI Agent Preview</span>
+                <span>Agent Preview</span>
                 {pathname === '/live_ai-agent' && (
                   <div className="ml-auto w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-full"></div>
                 )}
@@ -463,7 +463,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           setIsSidebarOpen={setIsSidebarOpen}
         />
 
-        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4 bg-white dark:bg-gray-900 hide-scrollbar">
+        <div className="flex-1 overflow-y-auto px-4  py-4 bg-white dark:bg-gray-900 hide-scrollbar">
           <div className="max-w-full mx-auto">{children}</div>
         </div>
       </div>
