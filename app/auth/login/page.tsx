@@ -259,8 +259,8 @@ export default function LoginPage() {
               <motion.div variants={itemVariants} className="mt-6 text-center">
                 <p className="text-gray-600 dark:text-gray-300 text-sm">
                   Don't have an account?{' '}
-                  <a href="/auth/signup" className="font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200">
-                    Start a free trial
+                  <a href="/auth/register" className="font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200">
+                   Register
                   </a>
                 </p>
               </motion.div>
