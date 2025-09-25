@@ -25,7 +25,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
   const publicRoutePrefixes = [
     '/auth/login',
-    '/auth/signup',
+    '/auth/register',
     '/auth/forgot-password',
     '/agent',
   ];
