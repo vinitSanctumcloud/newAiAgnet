@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '@/store';
 import { fetchUserAgent } from '@/store/slice/agentSlice';
+import DashboardLayout from '@/components/DashboardLayout';
 
 interface Message {
   id: string;
@@ -425,6 +426,7 @@ const AIAgentPage: React.FC = () => {
   }
 
   return (
+    <DashboardLayout>
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div
         className="w-full max-w-md bg-white rounded-2xl flex flex-col overflow-hidden relative h-[600px] shadow-xl"
@@ -728,6 +730,7 @@ const AIAgentPage: React.FC = () => {
         </div>
       </div>
     </div>
+    </DashboardLayout>
   );
 };
 
