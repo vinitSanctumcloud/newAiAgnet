@@ -131,12 +131,7 @@ const defaultAgent: IAIAgent = {
 };
 
 // Function to generate a slug from the agent name
-const generateSlug = (name: string) => {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-};
+
 
 export default function AiAgentPage() {
   const dispatch = useDispatch<AppDispatch>();
@@ -347,8 +342,9 @@ export default function AiAgentPage() {
   const progressValue = ((currentStep + 1) / steps.length) * 100;
 
   // Generate agent slug and URL
-  const agentSlug = localAgent.aiAgentSlug ? generateSlug(localAgent?.aiAgentSlug) : 'your-agent';
+  const agentSlug = localAgent.aiAgentSlug;
   const hostWithPort = window.location.host; // returns "localhost:5000"
+  console.log(agentSlug, hostWithPort,"data");
   const agentUrl = `http://${hostWithPort}/agent/${agentSlug}`;
 
 
@@ -633,7 +629,7 @@ export default function AiAgentPage() {
                         size="sm"
                         variant="outline"
                         className="ml-2 shrink-0 border-amber-300 bg-amber-100 hover:bg-amber-200"
-                        onClick={() => navigator.clipboard.writeText(agentSlug)}
+                        onClick={() => navigator.clipboard.writeText(agentSlug ?? '')}
                       >
                         <Copy className="h-3 w-3" />
                       </Button>

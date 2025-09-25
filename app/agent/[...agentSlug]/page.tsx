@@ -128,37 +128,41 @@ const AIAgentPage: React.FC = () => {
         console.log(result, "dataa");
         const agentData = result.data;
 
+        if (!agentData) {
+          throw new Error('Agent not found');
+        }
+
         setAgentInfo({
-          aiAgentName: agentData.aiAgentName || 'Default AI Agent',
-          agentDescription: agentData.agentDescription || 'A versatile AI assistant',
-          domainExpertise: agentData.domainExpertise || 'General Assistance',
-          colorTheme: agentData.colorTheme || '#007bff',
-          manualEntry: Array.isArray(agentData.manualEntry)
+          aiAgentName: agentData?.aiAgentName || 'Default AI Agent',
+          agentDescription: agentData?.agentDescription || 'A versatile AI assistant',
+          domainExpertise: agentData?.domainExpertise || 'General Assistance',
+          colorTheme: agentData?.colorTheme || '#007bff',
+          manualEntry: Array.isArray(agentData?.manualEntry)
             ? agentData.manualEntry.map((entry: any) => ({
                 ...entry,
                 _id: entry._id ? entry._id.toString() : undefined,
               }))
             : [],
-          logoFile: agentData.logoFile || null,
-          docFiles: Array.isArray(agentData.docFiles) && agentData.docFiles.length > 0
-            ? typeof agentData.docFiles[0] === 'string'
-              ? agentData.docFiles as string[]
-              : agentData.docFiles as File[]
+          logoFile: agentData?.logoFile || null,
+          docFiles: Array.isArray(agentData?.docFiles) && agentData?.docFiles?.length > 0
+            ? typeof agentData?.docFiles[0] === 'string'
+              ? agentData?.docFiles as string[]
+              : agentData?.docFiles as File[]
             : [],
-          bannerFile: agentData.bannerFile || null,
+          bannerFile: agentData?.bannerFile || null,
         });
 
         setPersona({
-          greeting: agentData.greeting || 'Hello! How can I assist you today?',
-          conversationStarters: Array.isArray(agentData.conversationStarters) && agentData.conversationStarters.length > 0
-            ? agentData.conversationStarters
+          greeting: agentData?.greeting || 'Hello! How can I assist you today?',
+          conversationStarters: Array.isArray(agentData?.conversationStarters) && agentData?.conversationStarters?.length > 0
+            ? agentData?.conversationStarters
             : ['What services do you offer?', 'How do I get started?', 'Tell me about support options'],
-          tone: agentData.tone || 'Friendly',
-          customRules: agentData.customRules || '',
-          conversationFlow: agentData.conversationFlow || '',
-          languages: agentData.languages || 'English',
-          enableFreeText: agentData.enableFreeText ?? true,
-          enableBranchingLogic: agentData.enableBranchingLogic ?? true,
+          tone: agentData?.tone || 'Friendly',
+          customRules: agentData?.customRules || '',
+          conversationFlow: agentData?.conversationFlow || '',
+          languages: agentData?.languages || 'English',
+          enableFreeText: agentData?.enableFreeText ?? true,
+          enableBranchingLogic: agentData?.enableBranchingLogic ?? true,
         });
 
         setNoAgentMessage(null);
